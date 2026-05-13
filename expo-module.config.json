@@ -1,0 +1,9 @@
+{
+  "platforms": ["apple", "android", "web"],
+  "apple": {
+    "modules": ["PojlibExpoModule"]
+  },
+  "android": {
+    "modules": ["dev.justfeli.pojlibexpo.PojlibExpoModule"]
+  }
+}

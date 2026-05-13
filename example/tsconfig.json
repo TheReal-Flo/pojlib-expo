@@ -1,0 +1,10 @@
+{
+  "extends": "expo/tsconfig.base",
+  "compilerOptions": {
+    "strict": true,
+    "paths": {
+      "pojlib-expo": ["../src/index"],
+      "pojlib-expo/*": ["../src/*"]
+    }
+  }
+}
