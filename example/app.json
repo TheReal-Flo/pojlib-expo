@@ -3,7 +3,7 @@
     "name": "pojlib-expo-example",
     "slug": "pojlib-expo-example",
     "version": "1.0.0",
-    "orientation": "portrait",
+    "orientation": "landscape",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "light",
     "newArchEnabled": true,
@@ -27,6 +27,21 @@
     },
     "web": {
       "favicon": "./assets/favicon.png"
+    },
+    "plugins": [
+      [
+        "expo-build-properties",
+        {
+          "android": {
+            "minSdkVersion": 29
+          }
+        }
+      ]
+    ],
+    "extra": {
+      "eas": {
+        "projectId": "6fa164e7-ae3c-4c29-a52e-efb4e2ff0085"
+      }
     }
   }
 }

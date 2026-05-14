@@ -1,8 +1,20 @@
 // Learn more https://docs.expo.io/guides/customizing-metro
 const { getDefaultConfig } = require('expo/metro-config');
+const fs = require('fs');
 const path = require('path');
 
 const config = getDefaultConfig(__dirname);
+const parentDir = path.resolve(__dirname, '..');
+const parentPackageJson = path.join(parentDir, 'package.json');
+const hasParentPackage =
+  fs.existsSync(parentPackageJson) &&
+  (() => {
+    try {
+      return JSON.parse(fs.readFileSync(parentPackageJson, 'utf8')).name === 'pojlib-expo';
+    } catch {
+      return false;
+    }
+  })();
 
 // npm v7+ will install ../node_modules/react and ../node_modules/react-native because of peerDependencies.
 // To prevent the incompatible react-native between ./node_modules/react-native and ../node_modules/react-native,
@@ -18,11 +30,16 @@ config.resolver.nodeModulesPaths = [
   path.resolve(__dirname, '../node_modules'),
 ];
 
-config.resolver.extraNodeModules = {
-  'pojlib-expo': '..',
-};
+if (hasParentPackage) {
+  config.resolver.extraNodeModules = {
+    ...(config.resolver.extraNodeModules ?? {}),
+    'pojlib-expo': parentDir,
+  };
+}
 
-config.watchFolders = [path.resolve(__dirname, '..')];
+if (hasParentPackage) {
+  config.watchFolders = [...(config.watchFolders ?? []), parentDir];
+}
 
 config.transformer.getTransformOptions = async () => ({
   transform: {

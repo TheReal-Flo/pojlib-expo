@@ -6,10 +6,11 @@
   "types": "build/index.d.ts",
   "scripts": {
     "build": "expo-module build",
+    "sync:pojlib-aar": "powershell -ExecutionPolicy Bypass -File .\\scripts\\sync-pojlib-aar.ps1",
     "clean": "expo-module clean",
     "lint": "expo-module lint",
     "test": "expo-module test",
-    "prepare": "expo-module prepare",
+    "prepare": "node ./scripts/prepare.js",
     "prepublishOnly": "expo-module prepublishOnly",
     "expo-module": "expo-module",
     "open:ios": "xed example/ios",

@@ -6,13 +6,38 @@ plugins {
 group = 'dev.justfeli.pojlibexpo'
 version = '0.1.0'
 
+def pojlibAarName = 'Pojlib-release'
+def pojlibAarFile = file("libs/${pojlibAarName}.aar")
+
+if (!pojlibAarFile.exists()) {
+  throw new GradleException("Missing ${pojlibAarFile.name} in android/libs. Copy the Pojlib AAR into android/libs before building Android.")
+}
+
 android {
   namespace "dev.justfeli.pojlibexpo"
   defaultConfig {
+    minSdkVersion 29
     versionCode 1
     versionName "0.1.0"
+    consumerProguardFiles "consumer-rules.pro"
   }
   lintOptions {
     abortOnError false
   }
+}
+
+dependencies {
+  implementation(files(pojlibAarFile))
+
+  implementation 'org.apache.commons:commons-math3:3.6.1'
+  implementation 'com.google.guava:guava:31.0.1-jre'
+  implementation 'org.jetbrains:annotations:24.0.1'
+  implementation 'com.google.code.gson:gson:2.12.1'
+  implementation 'org.json:json:20220924'
+  implementation 'commons-io:commons-io:2.13.0'
+  implementation 'commons-codec:commons-codec:1.15'
+  implementation 'androidx.annotation:annotation:1.7.1'
+  implementation 'androidx.core:core:1.13.1'
+  implementation 'com.microsoft.azure:msal4j:1.17.2'
+  implementation 'com.github.Mathias-Boulay:android_gamepad_remapper:2.0.3'
 }

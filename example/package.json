@@ -10,17 +10,15 @@
   },
   "dependencies": {
     "expo": "~54.0.33",
+    "expo-build-properties": "~1.0.10",
+    "pojlib-expo": "file:./vendor/pojlib-expo-0.1.0.tgz",
     "react": "19.1.0",
     "react-native": "0.81.5"
   },
   "devDependencies": {
     "@types/react": "~19.1.0",
+    "babel-preset-expo": "~54.0.10",
     "typescript": "~5.9.2"
   },
-  "private": true,
-  "expo": {
-    "autolinking": {
-      "nativeModulesDir": ".."
-    }
-  }
+  "private": true
 }
