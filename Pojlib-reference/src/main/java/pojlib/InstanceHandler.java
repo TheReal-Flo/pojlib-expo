@@ -340,6 +340,7 @@ public class InstanceHandler {
             VLoader.setAndroidInitInfo(activity);
             JREUtils.launchJavaVM(activity, instance.generateLaunchArgs(account), instance);
         } catch (Throwable e) {
+            Logger.getInstance().appendThrowable("InstanceHandler: launchInstance failed.", e);
             e.printStackTrace();
         }
     }

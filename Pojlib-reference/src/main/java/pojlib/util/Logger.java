@@ -3,11 +3,13 @@ package pojlib.util;
 import androidx.annotation.Keep;
 
 import java.io.File;
+import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.PrintStream;
 import java.lang.ref.WeakReference;
 import java.nio.file.Files;
 import java.nio.file.StandardCopyOption;
+import java.nio.charset.StandardCharsets;
 
 /** Singleton class made to log on one file
  * The singleton part can be removed but will require more implementation from the end-dev
@@ -36,7 +38,7 @@ public class Logger {
         mLogFile.delete();
         try {
             mLogFile.createNewFile();
-            mLogStream = new PrintStream(mLogFile.getAbsolutePath());
+            mLogStream = createLogStream();
         }catch (IOException e){e.printStackTrace();}
 
     }
@@ -51,33 +53,52 @@ public class Logger {
 
 
     /** Print the text to the log file if not censored */
-    public void appendToLog(String text){
+    public synchronized void appendToLog(String text){
         if(shouldCensorLog(text)) return;
         appendToLogUnchecked(text);
     }
 
     /** Print the text to the log file, no china censoring there */
-    public void appendToLogUnchecked(String text){
+    public synchronized void appendToLogUnchecked(String text){
+        if (mLogStream == null) {
+            return;
+        }
         mLogStream.println(text);
+        mLogStream.flush();
         notifyLogListener(text);
     }
 
+    public void appendThrowable(String prefix, Throwable throwable) {
+        StringBuilder builder = new StringBuilder(prefix == null ? "" : prefix);
+        if (throwable != null) {
+            if (builder.length() > 0 && builder.charAt(builder.length() - 1) != '\n') {
+                builder.append('\n');
+            }
+            builder.append(android.util.Log.getStackTraceString(throwable));
+        }
+        appendToLogUnchecked(builder.toString());
+    }
+
     /** Reset the log file, effectively erasing any previous logs */
-    public void reset(){
+    public synchronized void reset(){
         try{
             if (mLogStream != null) {
+                mLogStream.flush();
                 mLogStream.close();
             }
             rotateCurrentLogToLastSession();
             mLogFile.delete();
             mLogFile.createNewFile();
-            mLogStream = new PrintStream(mLogFile.getAbsolutePath());
+            mLogStream = createLogStream();
         }catch (IOException e){ e.printStackTrace();}
     }
 
     /** Disables the printing */
-    public void shutdown(){
-        mLogStream.close();
+    public synchronized void shutdown(){
+        if (mLogStream != null) {
+            mLogStream.flush();
+            mLogStream.close();
+        }
     }
 
     private void rotateCurrentLogToLastSession() {
@@ -99,6 +120,10 @@ public class Logger {
         } catch (IOException ignored) {
             // Ignore rotation failures and continue with a fresh latest log.
         }
+    }
+
+    private PrintStream createLogStream() throws IOException {
+        return new PrintStream(new FileOutputStream(mLogFile, false), true, StandardCharsets.UTF_8.name());
     }
 
     /**

@@ -17,24 +17,36 @@ public class PojlibVrActivity extends PojlibRuntimeActivity {
   private volatile boolean launchStarted = false;
   private volatile boolean resumed = false;
   private volatile boolean hasWindowFocus = false;
+  private Thread.UncaughtExceptionHandler previousUncaughtExceptionHandler;
 
   @Override
   protected void onCreate(Bundle savedInstanceState) {
     super.onCreate(savedInstanceState);
     getWindow().addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
+    installCrashLogger();
+    Logger.getInstance().appendToLog("PojlibVrActivity: Created VR activity.");
   }
 
   @Override
   protected void onResume() {
     super.onResume();
     resumed = true;
+    Logger.getInstance().appendToLog("PojlibVrActivity: Resumed.");
     maybeStartLaunch();
   }
 
   @Override
   protected void onPause() {
     resumed = false;
+    Logger.getInstance().appendToLog("PojlibVrActivity: Paused.");
     super.onPause();
+  }
+
+  @Override
+  protected void onDestroy() {
+    restoreCrashLogger();
+    Logger.getInstance().appendToLog("PojlibVrActivity: Destroyed.");
+    super.onDestroy();
   }
 
   @Override
@@ -52,6 +64,7 @@ public class PojlibVrActivity extends PojlibRuntimeActivity {
     }
 
     launchStarted = true;
+    Logger.getInstance().appendToLog("PojlibVrActivity: Window focused, starting launch shortly.");
     getWindow().getDecorView().postDelayed(this::startLaunchFromIntent, 250L);
   }
 
@@ -64,6 +77,8 @@ public class PojlibVrActivity extends PojlibRuntimeActivity {
       finish();
       return;
     }
+
+    Logger.getInstance().appendToLog("PojlibVrActivity: Launch requested for instance '" + instanceName + "'.");
 
     new Thread(() -> {
       try {
@@ -88,9 +103,35 @@ public class PojlibVrActivity extends PojlibRuntimeActivity {
 
         API.launchInstance(this, account, instance);
       } catch (Throwable throwable) {
-        Logger.getInstance().appendToLog("PojlibVrActivity: Failed to launch instance.\n" + throwable);
+        Logger.getInstance().appendThrowable("PojlibVrActivity: Failed to launch instance.", throwable);
         runOnUiThread(this::finish);
       }
     }, "PojlibVrLaunch").start();
+  }
+
+  private void installCrashLogger() {
+    previousUncaughtExceptionHandler = Thread.getDefaultUncaughtExceptionHandler();
+    Thread.setDefaultUncaughtExceptionHandler((thread, throwable) -> {
+      try {
+        Constants.initConstants(this);
+        Logger.getInstance().appendThrowable(
+          "PojlibVrActivity: Uncaught exception on thread '" + thread.getName() + "'.",
+          throwable
+        );
+      } catch (Throwable ignored) {
+        // Nothing else to do here.
+      }
+
+      if (previousUncaughtExceptionHandler != null) {
+        previousUncaughtExceptionHandler.uncaughtException(thread, throwable);
+      }
+    });
+  }
+
+  private void restoreCrashLogger() {
+    if (Thread.getDefaultUncaughtExceptionHandler() != null
+      && Thread.getDefaultUncaughtExceptionHandler() != previousUncaughtExceptionHandler) {
+      Thread.setDefaultUncaughtExceptionHandler(previousUncaughtExceptionHandler);
+    }
   }
 }
