@@ -139,9 +139,10 @@ public class JREUtils {
     }
 
     public static void relocateLibPath(final Context ctx) {
-        if (!(ctx instanceof Activity activity)) {
+        if (!(ctx instanceof Activity)) {
             throw new IllegalArgumentException("JREUtils.relocateLibPath requires an Activity context.");
         }
+        Activity activity = (Activity) ctx;
 
         try {
             sNativeLibDir = PojlibRuntimeHost.installNativeLibraries(activity).getAbsolutePath();
