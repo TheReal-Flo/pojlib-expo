@@ -268,6 +268,16 @@ class PojlibExpoModule : Module() {
       attachLogListener()
       PojlibBridge.readLatestLog(activity)
     }
+
+    AsyncFunction("readPreviousLog") {
+      val activity = requireNotNull(appContext.currentActivity) {
+        "An Android activity is required to read the previous Pojlib log."
+      }
+
+      PojlibBridge.initialize(activity)
+      attachLogListener()
+      PojlibBridge.readPreviousLog(activity)
+    }
   }
 
   private fun attachLogListener() {

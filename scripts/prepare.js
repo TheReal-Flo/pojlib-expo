@@ -14,7 +14,7 @@ if (!fs.existsSync(localBin)) {
 const result = spawnSync(localBin, ['prepare'], {
   stdio: 'inherit',
   cwd: path.join(__dirname, '..'),
-  shell: false,
+  shell: isWindows,
 });
 
 if (typeof result.status === 'number') {

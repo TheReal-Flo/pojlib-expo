@@ -235,6 +235,16 @@ object PojlibBridge {
     return FileUtil.read(logFile.absolutePath)
   }
 
+  fun readPreviousLog(activity: Activity): String? {
+    initialize(activity)
+    val logFile = File(Constants.USER_HOME, "lastsessionlog.txt")
+    if (!logFile.exists()) {
+      return null
+    }
+
+    return FileUtil.read(logFile.absolutePath)
+  }
+
   private fun loadInstancesModel(): MinecraftInstances {
     return API.loadAll()
   }

@@ -155,3 +155,7 @@ export function getPojlibDownloadStatus() {
 export function readPojlibLatestLog() {
   return PojlibExpoModule.readLatestLog();
 }
+
+export function readPojlibPreviousLog() {
+  return PojlibExpoModule.readPreviousLog();
+}

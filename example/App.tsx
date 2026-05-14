@@ -13,6 +13,7 @@ import PojlibExpo, {
   loginToPojlib,
   prelaunchPojlibInstance,
   readPojlibLatestLog,
+  readPojlibPreviousLog,
   type PojlibAccount,
   type PojlibInstance,
   type PojlibStatus,
@@ -32,7 +33,10 @@ export default function App() {
   const [instances, setInstances] = useState<PojlibInstance[]>([]);
   const [supportedVersions, setSupportedVersions] = useState<string[]>([]);
   const [latestLog, setLatestLog] = useState<string | null>(null);
+  const [previousLog, setPreviousLog] = useState<string | null>(null);
   const [logLines, setLogLines] = useState<string[]>([]);
+  const [latestMclogsUrl, setLatestMclogsUrl] = useState<string | null>(null);
+  const [previousMclogsUrl, setPreviousMclogsUrl] = useState<string | null>(null);
   const [busyLabel, setBusyLabel] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
@@ -103,12 +107,13 @@ export default function App() {
   }
 
   async function refreshAll() {
-    const [nextStatus, nextAccounts, nextInstances, nextVersions, nextLog] = await Promise.all([
+    const [nextStatus, nextAccounts, nextInstances, nextVersions, nextLog, nextPreviousLog] = await Promise.all([
       getPojlibStatus(),
       listPojlibAccounts(),
       loadPojlibInstances(),
       getPojlibSupportedVersions(),
       readPojlibLatestLog(),
+      readPojlibPreviousLog(),
     ]);
 
     setStatus(nextStatus);
@@ -116,6 +121,7 @@ export default function App() {
     setInstances(nextInstances);
     setSupportedVersions(nextVersions);
     setLatestLog(nextLog);
+    setPreviousLog(nextPreviousLog);
   }
 
   async function refreshInstancesOnly() {
@@ -134,6 +140,26 @@ export default function App() {
   async function installDefaultVersion(minecraftVersion: string) {
     await installDefaultPojlibInstance({ minecraftVersion });
     await refreshAll();
+  }
+
+  async function uploadLogToMclogs(logContent: string, source: string) {
+    const response = await fetch('https://api.mclo.gs/1/log', {
+      method: 'POST',
+      headers: {
+        'content-type': 'application/json',
+      },
+      body: JSON.stringify({
+        content: logContent,
+        source,
+      }),
+    });
+
+    const payload = (await response.json()) as { success?: boolean; url?: string; error?: string };
+    if (!response.ok || !payload.success || !payload.url) {
+      throw new Error(payload.error ?? `mclo.gs upload failed with status ${response.status}.`);
+    }
+
+    return payload.url;
   }
 
   return (
@@ -200,6 +226,7 @@ export default function App() {
               onPress={() =>
                 runAction('Reading log', async () => {
                   setLatestLog(await readPojlibLatestLog());
+                  setPreviousLog(await readPojlibPreviousLog());
                 })
               }
             />
@@ -312,7 +339,42 @@ export default function App() {
 
         <View style={styles.panel}>
           <Text style={styles.sectionTitle}>Latest Log File</Text>
+          <View style={styles.actions}>
+            <ActionButton
+              label="Upload Latest to mclo.gs"
+              onPress={() =>
+                runAction('Uploading latest log', async () => {
+                  if (!latestLog?.trim()) {
+                    throw new Error('No latest log is available to upload.');
+                  }
+
+                  setLatestMclogsUrl(await uploadLogToMclogs(latestLog, 'pojlib-expo-example'));
+                })
+              }
+            />
+          </View>
+          {latestMclogsUrl ? <Text style={styles.label}>mclo.gs: {latestMclogsUrl}</Text> : null}
           <Text style={styles.logBlock}>{latestLog ?? 'No log file read yet'}</Text>
+        </View>
+
+        <View style={styles.panel}>
+          <Text style={styles.sectionTitle}>Previous Session Log</Text>
+          <View style={styles.actions}>
+            <ActionButton
+              label="Upload Previous to mclo.gs"
+              onPress={() =>
+                runAction('Uploading previous log', async () => {
+                  if (!previousLog?.trim()) {
+                    throw new Error('No previous session log is available to upload.');
+                  }
+
+                  setPreviousMclogsUrl(await uploadLogToMclogs(previousLog, 'pojlib-expo-example'));
+                })
+              }
+            />
+          </View>
+          {previousMclogsUrl ? <Text style={styles.label}>mclo.gs: {previousMclogsUrl}</Text> : null}
+          <Text style={styles.logBlock}>{previousLog ?? 'No previous session log found yet'}</Text>
         </View>
       </ScrollView>
     </SafeAreaView>

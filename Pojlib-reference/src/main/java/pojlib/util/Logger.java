@@ -6,25 +6,32 @@ import java.io.File;
 import java.io.IOException;
 import java.io.PrintStream;
 import java.lang.ref.WeakReference;
+import java.nio.file.Files;
+import java.nio.file.StandardCopyOption;
 
 /** Singleton class made to log on one file
  * The singleton part can be removed but will require more implementation from the end-dev
  */
 @Keep
 public class Logger {
+    public static final String LATEST_LOG_FILE_NAME = "latestlog.txt";
+    public static final String LAST_SESSION_LOG_FILE_NAME = "lastsessionlog.txt";
 
     /* Instance variables */
     private final File mLogFile;
+    private final File mLastSessionLogFile;
     private PrintStream mLogStream;
     private WeakReference<eventLogListener> mLogListenerWeakReference = null;
 
     /* No public construction */
     private Logger(){
-        this("latestlog.txt");
+        this(LATEST_LOG_FILE_NAME);
     }
 
     private Logger(String fileName){
         mLogFile = new File(Constants.USER_HOME, fileName);
+        mLastSessionLogFile = new File(Constants.USER_HOME, LAST_SESSION_LOG_FILE_NAME);
+        rotateCurrentLogToLastSession();
         // Make a new instance of the log file
         mLogFile.delete();
         try {
@@ -58,6 +65,10 @@ public class Logger {
     /** Reset the log file, effectively erasing any previous logs */
     public void reset(){
         try{
+            if (mLogStream != null) {
+                mLogStream.close();
+            }
+            rotateCurrentLogToLastSession();
             mLogFile.delete();
             mLogFile.createNewFile();
             mLogStream = new PrintStream(mLogFile.getAbsolutePath());
@@ -67,6 +78,27 @@ public class Logger {
     /** Disables the printing */
     public void shutdown(){
         mLogStream.close();
+    }
+
+    private void rotateCurrentLogToLastSession() {
+        if (!mLogFile.exists()) {
+            return;
+        }
+
+        if (mLastSessionLogFile.exists()) {
+            mLastSessionLogFile.delete();
+        }
+
+        if (mLogFile.renameTo(mLastSessionLogFile)) {
+            return;
+        }
+
+        try {
+            Files.copy(mLogFile.toPath(), mLastSessionLogFile.toPath(), StandardCopyOption.REPLACE_EXISTING);
+            mLogFile.delete();
+        } catch (IOException ignored) {
+            // Ignore rotation failures and continue with a fresh latest log.
+        }
     }
 
     /**

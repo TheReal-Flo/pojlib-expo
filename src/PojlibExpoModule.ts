@@ -61,6 +61,7 @@ declare class PojlibExpoModule extends NativeModule<PojlibExpoModuleEvents> {
   launchInstance(instanceName: string, accountUUID: string | null): Promise<void>;
   getDownloadStatus(): Promise<PojlibDownloadStatus>;
   readLatestLog(): Promise<string | null>;
+  readPreviousLog(): Promise<string | null>;
 }
 
 export type {
