@@ -45,6 +45,8 @@ example/ios/Pods
 
 # Ruby
 example/vendor/
+!example/vendor/
+!example/vendor/pojlib-expo-0.1.0.tgz
 
 # node.js
 #
