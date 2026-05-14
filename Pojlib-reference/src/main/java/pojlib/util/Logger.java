@@ -7,9 +7,9 @@ import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.PrintStream;
 import java.lang.ref.WeakReference;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.StandardCopyOption;
-import java.nio.charset.StandardCharsets;
 
 /** Singleton class made to log on one file
  * The singleton part can be removed but will require more implementation from the end-dev
@@ -106,6 +106,10 @@ public class Logger {
             return;
         }
 
+        if (!hasMeaningfulLogContent(mLogFile)) {
+            return;
+        }
+
         if (mLastSessionLogFile.exists()) {
             mLastSessionLogFile.delete();
         }
@@ -124,6 +128,14 @@ public class Logger {
 
     private PrintStream createLogStream() throws IOException {
         return new PrintStream(new FileOutputStream(mLogFile, false), true, StandardCharsets.UTF_8.name());
+    }
+
+    private boolean hasMeaningfulLogContent(File file) {
+        try {
+            return file.exists() && Files.size(file.toPath()) > 0;
+        } catch (IOException ignored) {
+            return false;
+        }
     }
 
     /**
