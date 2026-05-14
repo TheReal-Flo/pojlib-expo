@@ -44,11 +44,18 @@ public class Installer {
                 DownloadManager.reset();
                 FileUtil.unzipArchive(jreZip.getPath(), Constants.getRuntimeDir().getAbsolutePath());
                 File nativeLibDir = PojlibRuntimeHost.installNativeLibraries(activity);
-                Files.copy(
-                    Paths.get(new File(nativeLibDir, "libawt_xawt.so").getAbsolutePath()),
-                    Paths.get(Constants.getInternalHomeFile("runtimes/JRE/lib/libawt_xawt.so").getAbsolutePath()),
-                    java.nio.file.StandardCopyOption.REPLACE_EXISTING
-                );
+                File awtXawtSource = new File(nativeLibDir, "libawt_xawt.so");
+                if (awtXawtSource.exists()) {
+                    Files.copy(
+                        Paths.get(awtXawtSource.getAbsolutePath()),
+                        Paths.get(Constants.getInternalHomeFile("runtimes/JRE/lib/libawt_xawt.so").getAbsolutePath()),
+                        java.nio.file.StandardCopyOption.REPLACE_EXISTING
+                    );
+                } else {
+                    Logger.getInstance().appendToLog(
+                        "Skipping libawt_xawt.so copy because it is not packaged in the app native libraries."
+                    );
+                }
                 jreZip.delete();
             }
 

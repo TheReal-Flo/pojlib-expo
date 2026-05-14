@@ -37,8 +37,10 @@ export default function App() {
   const [logLines, setLogLines] = useState<string[]>([]);
   const [latestMclogsUrl, setLatestMclogsUrl] = useState<string | null>(null);
   const [previousMclogsUrl, setPreviousMclogsUrl] = useState<string | null>(null);
+  const [previousMclogsStatus, setPreviousMclogsStatus] = useState<string | null>(null);
   const [busyLabel, setBusyLabel] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [autoUploadedPreviousLog, setAutoUploadedPreviousLog] = useState<string | null>(null);
 
   const hasInstallingInstance = instances.some((instance) => !instance.classpath);
 
@@ -84,6 +86,31 @@ export default function App() {
     });
   }, [logEvent]);
 
+  useEffect(() => {
+    if (!previousLog?.trim()) {
+      return;
+    }
+
+    if (autoUploadedPreviousLog === previousLog || previousMclogsUrl) {
+      return;
+    }
+
+    setPreviousMclogsStatus('Uploading previous session log to mclo.gs...');
+
+    void uploadLogToMclogs(previousLog, 'pojlib-expo-example').then(
+      (url) => {
+        setPreviousMclogsUrl(url);
+        setPreviousMclogsStatus(null);
+        setAutoUploadedPreviousLog(previousLog);
+      },
+      (nextError) => {
+        setPreviousMclogsStatus(
+          nextError instanceof Error ? nextError.message : String(nextError)
+        );
+      }
+    );
+  }, [autoUploadedPreviousLog, previousLog, previousMclogsUrl]);
+
   async function runAction(label: string, action: () => Promise<void>) {
     setBusyLabel(label);
     setError(null);
@@ -122,6 +149,11 @@ export default function App() {
     setSupportedVersions(nextVersions);
     setLatestLog(nextLog);
     setPreviousLog(nextPreviousLog);
+    if (nextPreviousLog !== previousLog) {
+      setPreviousMclogsUrl(null);
+      setPreviousMclogsStatus(null);
+      setAutoUploadedPreviousLog(null);
+    }
   }
 
   async function refreshInstancesOnly() {
@@ -368,12 +400,15 @@ export default function App() {
                     throw new Error('No previous session log is available to upload.');
                   }
 
+                  setPreviousMclogsStatus(null);
                   setPreviousMclogsUrl(await uploadLogToMclogs(previousLog, 'pojlib-expo-example'));
+                  setAutoUploadedPreviousLog(previousLog);
                 })
               }
             />
           </View>
           {previousMclogsUrl ? <Text style={styles.label}>mclo.gs: {previousMclogsUrl}</Text> : null}
+          {previousMclogsStatus ? <Text style={styles.label}>{previousMclogsStatus}</Text> : null}
           <Text style={styles.logBlock}>{previousLog ?? 'No previous session log found yet'}</Text>
         </View>
       </ScrollView>
