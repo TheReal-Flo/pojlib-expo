@@ -44,6 +44,10 @@ public class PojlibVrActivity extends PojlibRuntimeActivity {
 
   @Override
   protected void onDestroy() {
+    if (launchStarted && !API.gameReady && isFinishing()) {
+      Logger.getInstance().appendToLog("PojlibVrActivity: Finishing before game became ready, archiving current log.");
+      Logger.getInstance().archiveCurrentLogToLastSession();
+    }
     restoreCrashLogger();
     Logger.getInstance().appendToLog("PojlibVrActivity: Destroyed.");
     super.onDestroy();
@@ -104,6 +108,7 @@ public class PojlibVrActivity extends PojlibRuntimeActivity {
         API.launchInstance(this, account, instance);
       } catch (Throwable throwable) {
         Logger.getInstance().appendThrowable("PojlibVrActivity: Failed to launch instance.", throwable);
+        Logger.getInstance().archiveCurrentLogToLastSession();
         runOnUiThread(this::finish);
       }
     }, "PojlibVrLaunch").start();
@@ -118,6 +123,7 @@ public class PojlibVrActivity extends PojlibRuntimeActivity {
           "PojlibVrActivity: Uncaught exception on thread '" + thread.getName() + "'.",
           throwable
         );
+        Logger.getInstance().archiveCurrentLogToLastSession();
       } catch (Throwable ignored) {
         // Nothing else to do here.
       }

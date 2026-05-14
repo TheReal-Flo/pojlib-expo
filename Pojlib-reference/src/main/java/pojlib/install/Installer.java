@@ -8,6 +8,7 @@ import com.google.gson.JsonObject;
 
 import org.apache.commons.io.FileUtils;
 
+import pojlib.PojlibRuntimeHost;
 import pojlib.APIHandler;
 import pojlib.util.download.DownloadManager;
 import pojlib.util.download.DownloadUtils;
@@ -42,7 +43,12 @@ public class Installer {
                 DownloadUtils.downloadFile(jreURL, jreZip);
                 DownloadManager.reset();
                 FileUtil.unzipArchive(jreZip.getPath(), Constants.getRuntimeDir().getAbsolutePath());
-                Files.copy(Paths.get(activity.getApplicationInfo().nativeLibraryDir + "/libawt_xawt.so"), Paths.get(Constants.getInternalHomeFile("runtimes/JRE/lib/libawt_xawt.so").getAbsolutePath()));
+                File nativeLibDir = PojlibRuntimeHost.installNativeLibraries(activity);
+                Files.copy(
+                    Paths.get(new File(nativeLibDir, "libawt_xawt.so").getAbsolutePath()),
+                    Paths.get(Constants.getInternalHomeFile("runtimes/JRE/lib/libawt_xawt.so").getAbsolutePath()),
+                    java.nio.file.StandardCopyOption.REPLACE_EXISTING
+                );
                 jreZip.delete();
             }
 

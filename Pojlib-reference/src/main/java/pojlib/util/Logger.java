@@ -101,12 +101,30 @@ public class Logger {
         }
     }
 
+    public synchronized void archiveCurrentLogToLastSession() {
+        if (mLogStream != null) {
+            mLogStream.flush();
+        }
+        copyCurrentLogToLastSession();
+    }
+
     private void rotateCurrentLogToLastSession() {
         if (!mLogFile.exists()) {
             return;
         }
 
         if (!hasMeaningfulLogContent(mLogFile)) {
+            return;
+        }
+
+        copyCurrentLogToLastSession();
+        if (mLogFile.exists()) {
+            mLogFile.delete();
+        }
+    }
+
+    private void copyCurrentLogToLastSession() {
+        if (!mLogFile.exists() || !hasMeaningfulLogContent(mLogFile)) {
             return;
         }
 
@@ -120,7 +138,6 @@ public class Logger {
 
         try {
             Files.copy(mLogFile.toPath(), mLastSessionLogFile.toPath(), StandardCopyOption.REPLACE_EXISTING);
-            mLogFile.delete();
         } catch (IOException ignored) {
             // Ignore rotation failures and continue with a fresh latest log.
         }

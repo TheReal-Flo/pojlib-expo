@@ -12,6 +12,7 @@ import pojlib.account.MinecraftAccount
 import pojlib.util.Constants
 import pojlib.util.FileUtil
 import pojlib.util.GsonUtils
+import pojlib.util.Logger
 import pojlib.util.json.MinecraftInstances
 import pojlib.util.json.ProjectInfo
 import java.io.File
@@ -215,6 +216,9 @@ object PojlibBridge {
     val account = resolveAccount(activity, accountUuid)
       ?: throw IllegalStateException("No account is currently loaded. Call login() first.")
     API.currentInstance = instance
+    Logger.getInstance().appendToLog(
+      "PojlibBridge: Launching instance '${instance.instanceName}' for account '${account.uuid}'."
+    )
     launchVrActivity(activity, instance.instanceName, account.uuid)
   }
 

@@ -15,6 +15,10 @@ import android.view.WindowManager;
 
 import java.io.File;
 import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.StandardCopyOption;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Objects;
 
 import pojlib.input.AWTInputBridge;
@@ -58,6 +62,31 @@ public final class PojlibRuntimeHost {
 
         Logger.getInstance().appendToLog("LWJGL installed");
         return lwjgl.getAbsolutePath();
+    }
+
+    public static File installNativeLibraries(Activity activity) throws IOException {
+        File sourceDir = new File(activity.getApplicationInfo().nativeLibraryDir);
+        File targetDir = Constants.getInternalHomeFile("native-libs");
+        FileUtil.ensureDirectory(targetDir);
+
+        File[] sourceFiles = sourceDir.listFiles((dir, name) -> name.endsWith(".so"));
+        if (sourceFiles == null || sourceFiles.length == 0) {
+            throw new IOException("No native libraries were found in " + sourceDir.getAbsolutePath());
+        }
+
+        List<String> copiedLibraries = new ArrayList<>();
+        for (File sourceFile : sourceFiles) {
+            File targetFile = new File(targetDir, sourceFile.getName());
+            if (!targetFile.exists() || targetFile.length() != sourceFile.length()) {
+                Files.copy(sourceFile.toPath(), targetFile.toPath(), StandardCopyOption.REPLACE_EXISTING);
+            }
+            copiedLibraries.add(sourceFile.getName());
+        }
+
+        Logger.getInstance().appendToLog(
+            "Installed " + copiedLibraries.size() + " native libraries to " + targetDir.getAbsolutePath()
+        );
+        return targetDir;
     }
 
     public static void restartRuntime(Activity activity) {

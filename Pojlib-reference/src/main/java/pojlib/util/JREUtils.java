@@ -139,7 +139,15 @@ public class JREUtils {
     }
 
     public static void relocateLibPath(final Context ctx) {
-        sNativeLibDir = ctx.getApplicationInfo().nativeLibraryDir;
+        if (!(ctx instanceof Activity activity)) {
+            throw new IllegalArgumentException("JREUtils.relocateLibPath requires an Activity context.");
+        }
+
+        try {
+            sNativeLibDir = PojlibRuntimeHost.installNativeLibraries(activity).getAbsolutePath();
+        } catch (IOException e) {
+            throw new RuntimeException("Failed to stage native libraries for the JVM.", e);
+        }
 
         LD_LIBRARY_PATH = Constants.getInternalHomeFile("runtimes/JRE/bin").getAbsolutePath() + ":" + Constants.getInternalHomeFile("runtimes/JRE/lib").getAbsolutePath() + ":" +
                 "/system/lib64:/vendor/lib64:/vendor/lib64/hw:" +
@@ -147,12 +155,18 @@ public class JREUtils {
     }
 
     public static void setJavaEnvironment(Activity activity, MinecraftInstances.Instance instance) throws Throwable {
+        File jnaTempDir = new File(activity.getCacheDir(), "jna");
+        if (!jnaTempDir.exists()) {
+            jnaTempDir.mkdirs();
+        }
+
         Map<String, String> envMap = new ArrayMap<>();
-        envMap.put("POJLIB_NATIVEDIR", activity.getApplicationInfo().nativeLibraryDir);
+        envMap.put("POJLIB_NATIVEDIR", sNativeLibDir);
         envMap.put("JAVA_HOME", Constants.getRuntimeDir().getAbsolutePath());
         envMap.put("HOME", instance.gameDir);
         //envMap.put("APP_HOME", Constants.USER_HOME);
         envMap.put("TMPDIR", activity.getCacheDir().getAbsolutePath());
+        envMap.put("JNA_TMPDIR", jnaTempDir.getAbsolutePath());
         envMap.put("VR_MODEL", API.model);
         envMap.put("POJLIB_RENDERER", "LightThinWrapper");
 
@@ -286,6 +300,10 @@ public class JREUtils {
      */
     public static List<String> getJavaArgs(Context ctx, MinecraftInstances.Instance instance) {
         File resConfFile = new File(Constants.USER_HOME + "/hacks/resolv.conf");
+        File jnaTempDir = new File(ctx.getCacheDir(), "jna");
+        if (!jnaTempDir.exists()) {
+            jnaTempDir.mkdirs();
+        }
         try {
             if(!resConfFile.exists()) {
                 resConfFile.createNewFile();
@@ -301,10 +319,11 @@ public class JREUtils {
                 "-Duser.language=" + System.getProperty("user.language"),
                 "-Dos.name=Linux",
                 "-Dos.version=Android-" + Build.VERSION.RELEASE,
-                "-Dorg.lwjgl.librarypath=" + ctx.getApplicationInfo().nativeLibraryDir,
-                "-Djna.boot.library.path=" + ctx.getApplicationInfo().nativeLibraryDir,
+                "-Dorg.lwjgl.librarypath=" + sNativeLibDir,
+                "-Djna.boot.library.path=" + sNativeLibDir,
+                "-Djna.tmpdir=" + jnaTempDir.getAbsolutePath(),
                 "-Djna.nosys=true",
-                "-Djava.library.path=" + ctx.getApplicationInfo().nativeLibraryDir,
+                "-Djava.library.path=" + sNativeLibDir,
                 "-Dglfwstub.windowWidth=" + 1280,
                 "-Dglfwstub.windowHeight=" + 720,
                 "-Dglfwstub.initEgl=false",
@@ -312,7 +331,7 @@ public class JREUtils {
                 "-Dnet.minecraft.clientmodname=" + "QuestCraft",
                 "-Dext.net.resolvPath=" + resConfFile,
                 "-Dsodium.checks.issue2561=false",
-                "-Dorg.sqlite.lib.path=" + ctx.getApplicationInfo().nativeLibraryDir
+                "-Dorg.sqlite.lib.path=" + sNativeLibDir
         ));
     }
 
