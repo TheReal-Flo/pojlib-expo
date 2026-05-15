@@ -14,6 +14,7 @@
 #ifdef GLES_TEST
 #include <GLES2/gl2.h>
 #endif
+#include <GLES3/gl3.h>
 
 #include <android/native_window.h>
 #include <android/native_window_jni.h>
@@ -88,6 +89,18 @@ void* pojavGetCurrentContext() {
     return xrEglContext;
 }
 
+static void log_gl_context_probe() {
+    const GLubyte* version = glGetString(GL_VERSION);
+    const GLubyte* vendor = glGetString(GL_VENDOR);
+    const GLubyte* renderer = glGetString(GL_RENDERER);
+    GLenum error = glGetError();
+
+    printf("XREGLBridge: native GL_VERSION=%s\n", version ? (const char*) version : "<null>");
+    printf("XREGLBridge: native GL_VENDOR=%s\n", vendor ? (const char*) vendor : "<null>");
+    printf("XREGLBridge: native GL_RENDERER=%s\n", renderer ? (const char*) renderer : "<null>");
+    printf("XREGLBridge: native glGetError()=0x%x\n", error);
+}
+
 int xrEglInit() {
     dlsym_egl();
 
@@ -137,8 +150,12 @@ int xrEglInit() {
 
     eglBindAPI_p(EGL_OPENGL_ES_API);
 
-    xrEglSurface = eglCreatePbufferSurface_p(xrEglDisplay, xrConfig,
-                                           NULL);
+    static const EGLint pbuffer_attribs[] = {
+            EGL_WIDTH, 16,
+            EGL_HEIGHT, 16,
+            EGL_NONE
+    };
+    xrEglSurface = eglCreatePbufferSurface_p(xrEglDisplay, xrConfig, pbuffer_attribs);
     if (!xrEglSurface) {
         printf("EGLBridge: Error eglCreatePbufferSurface failed: %d\n", eglGetError_p());
         return 0;
@@ -192,6 +209,7 @@ void pojavMakeCurrent(void* window) {
         printf("XREGLBridge: eglMakeCurrent() succeed!\n");
         printf("XREGLBridge: system eglGetCurrentDisplay()=%p\n", eglGetCurrentDisplay());
         printf("XREGLBridge: system eglGetCurrentContext()=%p\n", eglGetCurrentContext());
+        log_gl_context_probe();
     }
 }
 
@@ -208,6 +226,29 @@ Java_pojlib_util_JREUtils_getEGLContextPtr(JNIEnv *env, jclass clazz) {
 JNIEXPORT JNICALL jlong
 Java_pojlib_util_JREUtils_getEGLConfigPtr(JNIEnv *env, jclass clazz) {
     return (jlong) &xrConfig;
+}
+
+JNIEXPORT JNICALL jlong
+Java_org_lwjgl_glfw_GLFWNativeEGL_nglfwGetEGLDisplay(JNIEnv *env, jclass clazz) {
+    return (jlong) xrEglDisplay;
+}
+
+JNIEXPORT JNICALL jlong
+Java_org_lwjgl_glfw_GLFWNativeEGL_nglfwGetEGLContext(JNIEnv *env, jclass clazz, jlong window) {
+    if (window != 0) {
+        return window;
+    }
+    return (jlong) xrEglContext;
+}
+
+JNIEXPORT JNICALL jlong
+Java_org_lwjgl_glfw_GLFWNativeEGL_nglfwGetEGLSurface(JNIEnv *env, jclass clazz, jlong window) {
+    return (jlong) xrEglSurface;
+}
+
+JNIEXPORT JNICALL jlong
+Java_org_lwjgl_glfw_GLFWNativeEGL_nglfwGetEGLConfig(JNIEnv *env, jclass clazz, jlong window) {
+    return (jlong) xrConfig;
 }
 
 void* pojavCreateContext(void* contextSrc) {

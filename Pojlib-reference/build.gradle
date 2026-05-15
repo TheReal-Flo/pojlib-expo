@@ -28,6 +28,10 @@ android {
     }
 
     buildToolsVersion = "30.0.3"
+
+    packagingOptions {
+        doNotStrip("*/arm64-v8a/libjnidispatch.so")
+    }
 }
 
 build {
