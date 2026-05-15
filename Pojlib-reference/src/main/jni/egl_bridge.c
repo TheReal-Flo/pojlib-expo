@@ -67,19 +67,21 @@ void pojavTerminate() {
 }
 
 void dlsym_egl() {
-    void* handle = dlopen("libltw.so", RTLD_NOW);
-    eglGetProcAddress_p = (eglGetProcAddress_t*) dlsym(handle, "eglGetProcAddress");
-    eglGetDisplay_p = (eglGetDisplay_t*) eglGetProcAddress_p("eglGetDisplay");
-    eglInitialize_p = (eglInitialize_t*) eglGetProcAddress_p("eglInitialize");
-    eglChooseConfig_p = (eglChooseConfig_t*) eglGetProcAddress_p("eglChooseConfig");
-    eglGetConfigAttrib_p = (eglGetConfigAttrib_t*) eglGetProcAddress_p("eglGetConfigAttrib");
-    eglBindAPI_p = (eglBindAPI_t*) eglGetProcAddress_p("eglBindAPI");
-    eglCreatePbufferSurface_p = (eglCreatePbufferSurface_t*) eglGetProcAddress_p("eglCreatePbufferSurface");
-    eglCreateContext_p = (eglCreateContext_t*) eglGetProcAddress_p("eglCreateContext");
-    eglMakeCurrent_p = (eglMakeCurrent_t*) eglGetProcAddress_p("eglMakeCurrent");
-    eglGetError_p = (eglGetError_t*) eglGetProcAddress_p("eglGetError");
-    eglSwapBuffers_p = (eglSwapBuffers_t*) eglGetProcAddress_p("eglSwapBuffers");
-    eglSwapInterval_p = (eglSwapInterval_t*) eglGetProcAddress_p("eglSwapInterval");
+    // Use the process-linked EGL entry points directly.
+    // The rest of the stack queries current EGL state through the system EGL
+    // library, so context creation/binding must go through the same symbols.
+    eglGetProcAddress_p = (eglGetProcAddress_t*) eglGetProcAddress;
+    eglGetDisplay_p = (eglGetDisplay_t*) eglGetDisplay;
+    eglInitialize_p = (eglInitialize_t*) eglInitialize;
+    eglChooseConfig_p = (eglChooseConfig_t*) eglChooseConfig;
+    eglGetConfigAttrib_p = (eglGetConfigAttrib_t*) eglGetConfigAttrib;
+    eglBindAPI_p = (eglBindAPI_t*) eglBindAPI;
+    eglCreatePbufferSurface_p = (eglCreatePbufferSurface_t*) eglCreatePbufferSurface;
+    eglCreateContext_p = (eglCreateContext_t*) eglCreateContext;
+    eglMakeCurrent_p = (eglMakeCurrent_t*) eglMakeCurrent;
+    eglGetError_p = (eglGetError_t*) eglGetError;
+    eglSwapBuffers_p = (eglSwapBuffers_t*) eglSwapBuffers;
+    eglSwapInterval_p = (eglSwapInterval_t*) eglSwapInterval;
 }
 
 void* pojavGetCurrentContext() {
@@ -185,9 +187,11 @@ void pojavMakeCurrent(void* window) {
     xrEglContext = window;
 
     if (success == EGL_FALSE) {
-        printf("XREGLBridge: Error: eglMakeCurrent() failed: %p\n", eglGetError());
+        printf("XREGLBridge: Error: eglMakeCurrent() failed: %p\n", eglGetError_p());
     } else {
         printf("XREGLBridge: eglMakeCurrent() succeed!\n");
+        printf("XREGLBridge: system eglGetCurrentDisplay()=%p\n", eglGetCurrentDisplay());
+        printf("XREGLBridge: system eglGetCurrentContext()=%p\n", eglGetCurrentContext());
     }
 }
 
@@ -211,7 +215,7 @@ void* pojavCreateContext(void* contextSrc) {
             EGL_CONTEXT_CLIENT_VERSION, 3,
             EGL_NONE
     };
-    EGLContext* ctx = eglCreateContext_p(xrEglDisplay, xrConfig, contextSrc, ctx_attribs);
+    EGLContext ctx = eglCreateContext_p(xrEglDisplay, xrConfig, contextSrc, ctx_attribs);
 
     printf("XREGLBridge: %p\n", ctx);
     return ctx;
