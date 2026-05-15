@@ -108,9 +108,6 @@ public final class PojlibRuntimeHost {
     private static void copySharedLibraries(File[] sourceFiles, File targetDir, List<String> copiedLibraries)
         throws IOException {
         for (File sourceFile : sourceFiles) {
-            if (shouldSkipSharedLibrary(sourceFile.getName())) {
-                continue;
-            }
             File targetFile = new File(targetDir, sourceFile.getName());
             if (!targetFile.exists() || targetFile.length() != sourceFile.length()) {
                 Files.copy(sourceFile.toPath(), targetFile.toPath(), StandardCopyOption.REPLACE_EXISTING);
@@ -175,9 +172,6 @@ public final class PojlibRuntimeHost {
             }
 
             String fileName = entry.getName().substring(entry.getName().lastIndexOf('/') + 1);
-            if (shouldSkipSharedLibrary(fileName)) {
-                continue;
-            }
             if (!copiedNames.add(fileName)) {
                 continue;
             }
@@ -207,10 +201,6 @@ public final class PojlibRuntimeHost {
                 );
             }
         }
-    }
-
-    private static boolean shouldSkipSharedLibrary(String fileName) {
-        return "libjnidispatch.so".equals(fileName);
     }
 
     private static String joinPaths(String[] paths) {
