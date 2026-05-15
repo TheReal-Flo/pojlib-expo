@@ -161,6 +161,11 @@ public class JREUtils {
             jnaTempDir.mkdirs();
         }
 
+        File mgDir = new File(activity.getFilesDir(), "mg");
+        if (!mgDir.exists()) {
+            mgDir.mkdirs();
+        }
+
         Map<String, String> envMap = new ArrayMap<>();
         envMap.put("POJLIB_NATIVEDIR", sNativeLibDir);
         envMap.put("JAVA_HOME", Constants.getRuntimeDir().getAbsolutePath());
@@ -169,7 +174,8 @@ public class JREUtils {
         envMap.put("TMPDIR", activity.getCacheDir().getAbsolutePath());
         envMap.put("JNA_TMPDIR", jnaTempDir.getAbsolutePath());
         envMap.put("VR_MODEL", API.model);
-        envMap.put("POJLIB_RENDERER", "LightThinWrapper");
+        envMap.put("POJLIB_RENDERER", "MobileGLUES");
+        envMap.put("MG_DIR_PATH", mgDir.getAbsolutePath());
 
         envMap.put("LD_LIBRARY_PATH", LD_LIBRARY_PATH);
         envMap.put("PATH", Constants.getInternalHomeFile("runtimes/JRE/bin").getAbsolutePath() + ":" + Os.getenv("PATH"));
@@ -386,7 +392,7 @@ public class JREUtils {
      * @return The name of the loaded library
      */
     public static String loadGraphicsLibrary(){
-        return "libltw.so";
+        return "libmobileglues.so";
     }
 
     public static native long getEGLContextPtr();
