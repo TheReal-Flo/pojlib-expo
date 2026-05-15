@@ -4,6 +4,7 @@ import static android.os.Build.VERSION.SDK_INT;
 
 import android.app.Activity;
 import android.content.ActivityNotFoundException;
+import android.content.pm.ApplicationInfo;
 import android.content.ClipData;
 import android.content.ClipboardManager;
 import android.content.Intent;
@@ -14,12 +15,18 @@ import android.util.DisplayMetrics;
 import android.view.WindowManager;
 
 import java.io.File;
+import java.io.FileOutputStream;
 import java.io.IOException;
+import java.io.InputStream;
 import java.nio.file.Files;
 import java.nio.file.StandardCopyOption;
 import java.util.ArrayList;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Objects;
+import java.util.Set;
+import java.util.zip.ZipEntry;
+import java.util.zip.ZipFile;
 
 import pojlib.input.AWTInputBridge;
 import pojlib.util.Constants;
@@ -70,11 +77,35 @@ public final class PojlibRuntimeHost {
         FileUtil.ensureDirectory(targetDir);
 
         File[] sourceFiles = sourceDir.listFiles((dir, name) -> name.endsWith(".so"));
-        if (sourceFiles == null || sourceFiles.length == 0) {
-            throw new IOException("No native libraries were found in " + sourceDir.getAbsolutePath());
+        List<String> copiedLibraries = new ArrayList<>();
+        if (sourceFiles != null && sourceFiles.length > 0) {
+            copySharedLibraries(sourceFiles, targetDir, copiedLibraries);
+            Logger.getInstance().appendToLog(
+                "Installed " + copiedLibraries.size() + " native libraries from " +
+                    sourceDir.getAbsolutePath() + " to " + targetDir.getAbsolutePath()
+            );
+            return targetDir;
         }
 
-        List<String> copiedLibraries = new ArrayList<>();
+        copiedLibraries = extractSharedLibrariesFromInstalledApks(activity, targetDir);
+        if (!copiedLibraries.isEmpty()) {
+            Logger.getInstance().appendToLog(
+                "Installed " + copiedLibraries.size() + " native libraries from installed APKs to " +
+                    targetDir.getAbsolutePath()
+            );
+            return targetDir;
+        }
+
+        ApplicationInfo applicationInfo = activity.getApplicationInfo();
+        throw new IOException(
+            "No native libraries were found in " + sourceDir.getAbsolutePath() +
+                " or inside the installed APKs. sourceDir=" + applicationInfo.sourceDir +
+                ", splitSourceDirs=" + joinPaths(applicationInfo.splitSourceDirs)
+        );
+    }
+
+    private static void copySharedLibraries(File[] sourceFiles, File targetDir, List<String> copiedLibraries)
+        throws IOException {
         for (File sourceFile : sourceFiles) {
             File targetFile = new File(targetDir, sourceFile.getName());
             if (!targetFile.exists() || targetFile.length() != sourceFile.length()) {
@@ -82,11 +113,93 @@ public final class PojlibRuntimeHost {
             }
             copiedLibraries.add(sourceFile.getName());
         }
+    }
 
-        Logger.getInstance().appendToLog(
-            "Installed " + copiedLibraries.size() + " native libraries to " + targetDir.getAbsolutePath()
-        );
-        return targetDir;
+    private static List<String> extractSharedLibrariesFromInstalledApks(Activity activity, File targetDir)
+        throws IOException {
+        ApplicationInfo applicationInfo = activity.getApplicationInfo();
+        List<String> apkPaths = new ArrayList<>();
+        if (applicationInfo.sourceDir != null && !applicationInfo.sourceDir.isEmpty()) {
+            apkPaths.add(applicationInfo.sourceDir);
+        }
+        if (applicationInfo.splitSourceDirs != null) {
+            for (String splitSourceDir : applicationInfo.splitSourceDirs) {
+                if (splitSourceDir != null && !splitSourceDir.isEmpty()) {
+                    apkPaths.add(splitSourceDir);
+                }
+            }
+        }
+
+        Set<String> preferredAbiDirs = new LinkedHashSet<>();
+        preferredAbiDirs.add("arm64-v8a");
+        for (String abi : Build.SUPPORTED_64_BIT_ABIS) {
+            preferredAbiDirs.add(abi);
+        }
+        for (String abi : Build.SUPPORTED_ABIS) {
+            preferredAbiDirs.add(abi);
+        }
+
+        List<String> copiedLibraries = new ArrayList<>();
+        Set<String> copiedNames = new LinkedHashSet<>();
+        for (String apkPath : apkPaths) {
+            File apkFile = new File(apkPath);
+            if (!apkFile.isFile()) {
+                continue;
+            }
+
+            try (ZipFile zipFile = new ZipFile(apkFile)) {
+                for (String abi : preferredAbiDirs) {
+                    extractLibrariesFromZipDirectory(zipFile, "lib/" + abi + "/", targetDir, copiedLibraries, copiedNames);
+                    extractLibrariesFromZipDirectory(zipFile, "jni/" + abi + "/", targetDir, copiedLibraries, copiedNames);
+                }
+            }
+        }
+        return copiedLibraries;
+    }
+
+    private static void extractLibrariesFromZipDirectory(
+        ZipFile zipFile,
+        String directoryPrefix,
+        File targetDir,
+        List<String> copiedLibraries,
+        Set<String> copiedNames
+    ) throws IOException {
+        List<? extends ZipEntry> entries = java.util.Collections.list(zipFile.entries());
+        for (ZipEntry entry : entries) {
+            if (entry.isDirectory() || !entry.getName().startsWith(directoryPrefix) || !entry.getName().endsWith(".so")) {
+                continue;
+            }
+
+            String fileName = entry.getName().substring(entry.getName().lastIndexOf('/') + 1);
+            if (!copiedNames.add(fileName)) {
+                continue;
+            }
+
+            File targetFile = new File(targetDir, fileName);
+            try (InputStream inputStream = zipFile.getInputStream(entry);
+                 FileOutputStream outputStream = new FileOutputStream(targetFile, false)) {
+                byte[] buffer = new byte[8192];
+                int read;
+                while ((read = inputStream.read(buffer)) != -1) {
+                    outputStream.write(buffer, 0, read);
+                }
+            }
+            copiedLibraries.add(fileName);
+        }
+    }
+
+    private static String joinPaths(String[] paths) {
+        if (paths == null || paths.length == 0) {
+            return "<none>";
+        }
+        StringBuilder builder = new StringBuilder();
+        for (int i = 0; i < paths.length; i++) {
+            if (i > 0) {
+                builder.append(", ");
+            }
+            builder.append(paths[i]);
+        }
+        return builder.toString();
     }
 
     public static void restartRuntime(Activity activity) {
