@@ -1,0 +1,1025 @@
+﻿Configuring module
+expo-module-scripts: README.md exists, not updating
+Configuring scripts
+tsconfig.json not found in scripts, skipping build for scripts
+[
+  {
+    "id": "pojlib-expo@0.1.2",
+    "name": "pojlib-expo",
+    "version": "0.1.2",
+    "size": 20710265,
+    "unpackedSize": 38938050,
+    "shasum": "9df35d4c2317b6e5da60d01f591767cb16dae1d1",
+    "integrity": "sha512-4WiiVZgbjS6jLq0F2qSjocw7J1jnnfRwzTBT/9QVAa7CpeZRM3q7fxitayuuqxOPxioR4BwjAVhv++qBqwhj+A==",
+    "filename": "pojlib-expo-0.1.2.tgz",
+    "files": [
+      {
+        "path": ".eslintrc.js",
+        "size": 113,
+        "mode": 420
+      },
+      {
+        "path": ".tmp-pack.json",
+        "size": 161,
+        "mode": 420
+      },
+      {
+        "path": "Pojlib-reference/.gitattributes",
+        "size": 258,
+        "mode": 420
+      },
+      {
+        "path": "Pojlib-reference/.gitmodules",
+        "size": 105,
+        "mode": 420
+      },
+      {
+        "path": "Pojlib-reference/.run/Pojlib [build].run.xml",
+        "size": 1913,
+        "mode": 420
+      },
+      {
+        "path": "Pojlib-reference/build.gradle",
+        "size": 1609,
+        "mode": 420
+      },
+      {
+        "path": "Pojlib-reference/devmods.json",
+        "size": 20494,
+        "mode": 420
+      },
+      {
+        "path": "Pojlib-reference/gradle.properties",
+        "size": 151,
+        "mode": 420
+      },
+      {
+        "path": "Pojlib-reference/gradle/wrapper/gradle-wrapper.jar",
+        "size": 60756,
+        "mode": 420
+      },
+      {
+        "path": "Pojlib-reference/gradle/wrapper/gradle-wrapper.properties",
+        "size": 236,
+        "mode": 420
+      },
+      {
+        "path": "Pojlib-reference/gradlew",
+        "size": 8188,
+        "mode": 420
+      },
+      {
+        "path": "Pojlib-reference/gradlew.bat",
+        "size": 2838,
+        "mode": 420
+      },
+      {
+        "path": "Pojlib-reference/jre_lwjgl3glfw/build.gradle",
+        "size": 937,
+        "mode": 420
+      },
+      {
+        "path": "Pojlib-reference/jre_lwjgl3glfw/libs/jsr305.jar",
+        "size": 19936,
+        "mode": 420
+      },
+      {
+        "path": "Pojlib-reference/jre_lwjgl3glfw/libs/lwjgl-freetype.jar",
+        "size": 450172,
+        "mode": 420
+      },
+      {
+        "path": "Pojlib-reference/jre_lwjgl3glfw/libs/lwjgl-glfw.jar",
+        "size": 131382,
+        "mode": 420
+      },
+      {
+        "path": "Pojlib-reference/jre_lwjgl3glfw/libs/lwjgl-jemalloc.jar",
+        "size": 33800,
+        "mode": 420
+      },
+      {
+        "path": "Pojlib-reference/jre_lwjgl3glfw/libs/lwjgl-lwjglx.jar",
+        "size": 229893,
+        "mode": 420
+      },
+      {
+        "path": "Pojlib-reference/jre_lwjgl3glfw/libs/lwjgl-nanovg.jar",
+        "size": 130282,
+        "mode": 420
+      },
+      {
+        "path": "Pojlib-reference/jre_lwjgl3glfw/libs/lwjgl-openal.jar",
+        "size": 113754,
+        "mode": 420
+      },
+      {
+        "path": "Pojlib-reference/jre_lwjgl3glfw/libs/lwjgl-opengl.jar",
+        "size": 932448,
+        "mode": 420
+      },
+      {
+        "path": "Pojlib-reference/jre_lwjgl3glfw/libs/lwjgl-openvr.jar",
+        "size": 497025,
+        "mode": 420
+      },
+      {
+        "path": "Pojlib-reference/jre_lwjgl3glfw/libs/lwjgl-stb.jar",
+        "size": 119671,
+        "mode": 420
+      },
+      {
+        "path": "Pojlib-reference/jre_lwjgl3glfw/libs/lwjgl-tinyfd.jar",
+        "size": 12822,
+        "mode": 420
+      },
+      {
+        "path": "Pojlib-reference/jre_lwjgl3glfw/libs/lwjgl.jar",
+        "size": 777773,
+        "mode": 420
+      },
+      {
+        "path": "Pojlib-reference/jre_lwjgl3glfw/src/main/java/android/util/ArrayMap.java",
+        "size": 31649,
+        "mode": 420
+      },
+      {
+        "path": "Pojlib-reference/jre_lwjgl3glfw/src/main/java/android/util/ContainerHelpers.java",
+        "size": 1813,
+        "mode": 420
+      },
+      {
+        "path": "Pojlib-reference/jre_lwjgl3glfw/src/main/java/android/util/EmptyArray.java",
+        "size": 1331,
+        "mode": 420
+      },
+      {
+        "path": "Pojlib-reference/jre_lwjgl3glfw/src/main/java/android/util/MapCollections.java",
+        "size": 16019,
+        "mode": 420
+      },
+      {
+        "path": "Pojlib-reference/jre_lwjgl3glfw/src/main/java/android/util/Objects.java",
+        "size": 3840,
+        "mode": 420
+      },
+      {
+        "path": "Pojlib-reference/jre_lwjgl3glfw/src/main/java/net/java/openjdk/cacio/ctc/ExternalMouseReader.java",
+        "size": 116,
+        "mode": 420
+      },
+      {
+        "path": "Pojlib-reference/jre_lwjgl3glfw/src/main/java/net/java/openjdk/cacio/ctc/InfdevGrabHandler.java",
+        "size": 217,
+        "mode": 420
+      },
+      {
+        "path": "Pojlib-reference/jre_lwjgl3glfw/src/main/java/net/minecraft/client/ClientBrandRetriever.java.z",
+        "size": 235,
+        "mode": 420
+      },
+      {
+        "path": "Pojlib-reference/jre_lwjgl3glfw/src/main/java/org/lwjgl/glfw/CallbackBridge.java",
+        "size": 2007,
+        "mode": 420
+      },
+      {
+        "path": "Pojlib-reference/jre_lwjgl3glfw/src/main/java/org/lwjgl/glfw/Callbacks.java",
+        "size": 1965,
+        "mode": 420
+      },
+      {
+        "path": "Pojlib-reference/jre_lwjgl3glfw/src/main/java/org/lwjgl/glfw/GLFW.java",
+        "size": 58437,
+        "mode": 420
+      },
+      {
+        "path": "Pojlib-reference/jre_lwjgl3glfw/src/main/java/org/lwjgl/glfw/GLFWNativeCocoa.java",
+        "size": 488,
+        "mode": 420
+      },
+      {
+        "path": "Pojlib-reference/jre_lwjgl3glfw/src/main/java/org/lwjgl/glfw/GLFWNativeEGL.java",
+        "size": 945,
+        "mode": 420
+      },
+      {
+        "path": "Pojlib-reference/jre_lwjgl3glfw/src/main/java/org/lwjgl/glfw/GLFWNativeNSGL.java",
+        "size": 285,
+        "mode": 420
+      },
+      {
+        "path": "Pojlib-reference/jre_lwjgl3glfw/src/main/java/org/lwjgl/glfw/GLFWNativeOSMesa.java",
+        "size": 1949,
+        "mode": 420
+      },
+      {
+        "path": "Pojlib-reference/jre_lwjgl3glfw/src/main/java/org/lwjgl/glfw/GLFWNativeWayland.java",
+        "size": 681,
+        "mode": 420
+      },
+      {
+        "path": "Pojlib-reference/jre_lwjgl3glfw/src/main/java/org/lwjgl/glfw/GLFWNativeWGL.java",
+        "size": 286,
+        "mode": 420
+      },
+      {
+        "path": "Pojlib-reference/jre_lwjgl3glfw/src/main/java/org/lwjgl/glfw/GLFWNativeWin32.java",
+        "size": 991,
+        "mode": 420
+      },
+      {
+        "path": "Pojlib-reference/jre_lwjgl3glfw/src/main/java/org/lwjgl/glfw/GLFWNativeX11.java",
+        "size": 1428,
+        "mode": 420
+      },
+      {
+        "path": "Pojlib-reference/jre_lwjgl3glfw/src/main/java/org/lwjgl/glfw/GLFWWindowProperties.java",
+        "size": 442,
+        "mode": 420
+      },
+      {
+        "path": "Pojlib-reference/jre_lwjgl3glfw/src/main/java/org/lwjgl/input/InfdevMouse.java",
+        "size": 607,
+        "mode": 420
+      },
+      {
+        "path": "Pojlib-reference/jre_lwjgl3glfw/src/main/java/org/lwjgl/opengl/GLCapabilities.java",
+        "size": 565801,
+        "mode": 420
+      },
+      {
+        "path": "Pojlib-reference/libs/unity-classes.jar",
+        "size": 107474,
+        "mode": 420
+      },
+      {
+        "path": "Pojlib-reference/LICENSE",
+        "size": 7723,
+        "mode": 420
+      },
+      {
+        "path": "Pojlib-reference/mods.json",
+        "size": 23931,
+        "mode": 420
+      },
+      {
+        "path": "Pojlib-reference/README.md",
+        "size": 3115,
+        "mode": 420
+      },
+      {
+        "path": "Pojlib-reference/settings.gradle",
+        "size": 866,
+        "mode": 420
+      },
+      {
+        "path": "Pojlib-reference/src/main/AndroidManifest.xml",
+        "size": 258,
+        "mode": 420
+      },
+      {
+        "path": "Pojlib-reference/src/main/assets/hacks/ResConfHack.jar",
+        "size": 12329,
+        "mode": 420
+      },
+      {
+        "path": "Pojlib-reference/src/main/assets/hacks/resolv.conf",
+        "size": 38,
+        "mode": 420
+      },
+      {
+        "path": "Pojlib-reference/src/main/assets/immediatelyfast.json",
+        "size": 207,
+        "mode": 420
+      },
+      {
+        "path": "Pojlib-reference/src/main/assets/lwjgl/lwjgl-glfw-classes.jar",
+        "size": 3435074,
+        "mode": 420
+      },
+      {
+        "path": "Pojlib-reference/src/main/assets/lwjgl/version",
+        "size": 13,
+        "mode": 420
+      },
+      {
+        "path": "Pojlib-reference/src/main/assets/modernfix-mixins.properties",
+        "size": 3184,
+        "mode": 420
+      },
+      {
+        "path": "Pojlib-reference/src/main/assets/moreculling.toml",
+        "size": 573,
+        "mode": 420
+      },
+      {
+        "path": "Pojlib-reference/src/main/assets/options.txt",
+        "size": 6398,
+        "mode": 420
+      },
+      {
+        "path": "Pojlib-reference/src/main/assets/servers.dat",
+        "size": 108,
+        "mode": 420
+      },
+      {
+        "path": "Pojlib-reference/src/main/assets/smoothboot.json",
+        "size": 188,
+        "mode": 420
+      },
+      {
+        "path": "Pojlib-reference/src/main/assets/sodium-options.json",
+        "size": 678,
+        "mode": 420
+      },
+      {
+        "path": "Pojlib-reference/src/main/assets/vivecraft-client-config.json",
+        "size": 7747,
+        "mode": 420
+      },
+      {
+        "path": "Pojlib-reference/src/main/java/com/oracle/dalvik/VMLauncher.java",
+        "size": 203,
+        "mode": 420
+      },
+      {
+        "path": "Pojlib-reference/src/main/java/dalvik/annotation/optimization/CriticalNative.java",
+        "size": 505,
+        "mode": 420
+      },
+      {
+        "path": "Pojlib-reference/src/main/java/org/lwjgl/glfw/CallbackBridge.java",
+        "size": 7755,
+        "mode": 420
+      },
+      {
+        "path": "Pojlib-reference/src/main/java/pojlib/account/LoginHelper.java",
+        "size": 4818,
+        "mode": 420
+      },
+      {
+        "path": "Pojlib-reference/src/main/java/pojlib/account/MinecraftAccount.java",
+        "size": 2081,
+        "mode": 420
+      },
+      {
+        "path": "Pojlib-reference/src/main/java/pojlib/account/Msa.java",
+        "size": 12032,
+        "mode": 420
+      },
+      {
+        "path": "Pojlib-reference/src/main/java/pojlib/account/TokenPersistence.java",
+        "size": 1265,
+        "mode": 420
+      },
+      {
+        "path": "Pojlib-reference/src/main/java/pojlib/API.java",
+        "size": 12612,
+        "mode": 420
+      },
+      {
+        "path": "Pojlib-reference/src/main/java/pojlib/APIHandler.java",
+        "size": 5263,
+        "mode": 420
+      },
+      {
+        "path": "Pojlib-reference/src/main/java/pojlib/input/AWTInputBridge.java",
+        "size": 1630,
+        "mode": 420
+      },
+      {
+        "path": "Pojlib-reference/src/main/java/pojlib/input/CriticalNativeTest.java",
+        "size": 297,
+        "mode": 420
+      },
+      {
+        "path": "Pojlib-reference/src/main/java/pojlib/input/EfficientAndroidLWJGLKeycode.java",
+        "size": 11115,
+        "mode": 420
+      },
+      {
+        "path": "Pojlib-reference/src/main/java/pojlib/input/gamepad/DefaultDataProvider.java",
+        "size": 817,
+        "mode": 420
+      },
+      {
+        "path": "Pojlib-reference/src/main/java/pojlib/input/gamepad/Gamepad.java",
+        "size": 16348,
+        "mode": 420
+      },
+      {
+        "path": "Pojlib-reference/src/main/java/pojlib/input/gamepad/GamepadButton.java",
+        "size": 798,
+        "mode": 420
+      },
+      {
+        "path": "Pojlib-reference/src/main/java/pojlib/input/gamepad/GamepadDataProvider.java",
+        "size": 257,
+        "mode": 420
+      },
+      {
+        "path": "Pojlib-reference/src/main/java/pojlib/input/gamepad/GamepadDpad.java",
+        "size": 2631,
+        "mode": 420
+      },
+      {
+        "path": "Pojlib-reference/src/main/java/pojlib/input/gamepad/GamepadEmulatedButton.java",
+        "size": 917,
+        "mode": 420
+      },
+      {
+        "path": "Pojlib-reference/src/main/java/pojlib/input/gamepad/GamepadJoystick.java",
+        "size": 2486,
+        "mode": 420
+      },
+      {
+        "path": "Pojlib-reference/src/main/java/pojlib/input/gamepad/GamepadMap.java",
+        "size": 8129,
+        "mode": 420
+      },
+      {
+        "path": "Pojlib-reference/src/main/java/pojlib/input/gamepad/GamepadMapStore.java",
+        "size": 2065,
+        "mode": 420
+      },
+      {
+        "path": "Pojlib-reference/src/main/java/pojlib/input/GrabListener.java",
+        "size": 102,
+        "mode": 420
+      },
+      {
+        "path": "Pojlib-reference/src/main/java/pojlib/input/LwjglGlfwKeycode.java",
+        "size": 8598,
+        "mode": 420
+      },
+      {
+        "path": "Pojlib-reference/src/main/java/pojlib/install/FabricMeta.java",
+        "size": 2380,
+        "mode": 420
+      },
+      {
+        "path": "Pojlib-reference/src/main/java/pojlib/install/Installer.java",
+        "size": 13307,
+        "mode": 420
+      },
+      {
+        "path": "Pojlib-reference/src/main/java/pojlib/install/MinecraftMeta.java",
+        "size": 1126,
+        "mode": 420
+      },
+      {
+        "path": "Pojlib-reference/src/main/java/pojlib/install/QuiltMeta.java",
+        "size": 938,
+        "mode": 420
+      },
+      {
+        "path": "Pojlib-reference/src/main/java/pojlib/install/VersionInfo.java",
+        "size": 2929,
+        "mode": 420
+      },
+      {
+        "path": "Pojlib-reference/src/main/java/pojlib/InstanceHandler.java",
+        "size": 15820,
+        "mode": 420
+      },
+      {
+        "path": "Pojlib-reference/src/main/java/pojlib/PojlibRuntimeActivity.java",
+        "size": 8354,
+        "mode": 420
+      },
+      {
+        "path": "Pojlib-reference/src/main/java/pojlib/PojlibRuntimeHost.java",
+        "size": 12747,
+        "mode": 420
+      },
+      {
+        "path": "Pojlib-reference/src/main/java/pojlib/UnityPlayerActivity.java",
+        "size": 1607,
+        "mode": 420
+      },
+      {
+        "path": "Pojlib-reference/src/main/java/pojlib/util/Constants.java",
+        "size": 2538,
+        "mode": 420
+      },
+      {
+        "path": "Pojlib-reference/src/main/java/pojlib/util/download/DownloadManager.java",
+        "size": 764,
+        "mode": 420
+      },
+      {
+        "path": "Pojlib-reference/src/main/java/pojlib/util/download/DownloadUtils.java",
+        "size": 3123,
+        "mode": 420
+      },
+      {
+        "path": "Pojlib-reference/src/main/java/pojlib/util/download/StreamDL.java",
+        "size": 964,
+        "mode": 420
+      },
+      {
+        "path": "Pojlib-reference/src/main/java/pojlib/util/download/StreamListener.java",
+        "size": 170,
+        "mode": 420
+      },
+      {
+        "path": "Pojlib-reference/src/main/java/pojlib/util/FileUtil.java",
+        "size": 6315,
+        "mode": 420
+      },
+      {
+        "path": "Pojlib-reference/src/main/java/pojlib/util/GsonUtils.java",
+        "size": 1016,
+        "mode": 420
+      },
+      {
+        "path": "Pojlib-reference/src/main/java/pojlib/util/JREUtils.java",
+        "size": 17489,
+        "mode": 420
+      },
+      {
+        "path": "Pojlib-reference/src/main/java/pojlib/util/json/MinecraftInstances.java",
+        "size": 11497,
+        "mode": 420
+      },
+      {
+        "path": "Pojlib-reference/src/main/java/pojlib/util/json/ModrinthIndexJson.java",
+        "size": 580,
+        "mode": 420
+      },
+      {
+        "path": "Pojlib-reference/src/main/java/pojlib/util/json/ModsJson.java",
+        "size": 245,
+        "mode": 420
+      },
+      {
+        "path": "Pojlib-reference/src/main/java/pojlib/util/json/ProjectInfo.java",
+        "size": 207,
+        "mode": 420
+      },
+      {
+        "path": "Pojlib-reference/src/main/java/pojlib/util/Logger.java",
+        "size": 5852,
+        "mode": 420
+      },
+      {
+        "path": "Pojlib-reference/src/main/java/pojlib/util/MathUtils.java",
+        "size": 301,
+        "mode": 420
+      },
+      {
+        "path": "Pojlib-reference/src/main/java/pojlib/util/MCOptionUtils.java",
+        "size": 5130,
+        "mode": 420
+      },
+      {
+        "path": "Pojlib-reference/src/main/java/pojlib/util/MSAException.java",
+        "size": 188,
+        "mode": 420
+      },
+      {
+        "path": "Pojlib-reference/src/main/java/pojlib/util/Version.java",
+        "size": 245,
+        "mode": 420
+      },
+      {
+        "path": "Pojlib-reference/src/main/java/pojlib/util/VLoader.java",
+        "size": 213,
+        "mode": 420
+      },
+      {
+        "path": "Pojlib-reference/src/main/jni/Android.mk",
+        "size": 2258,
+        "mode": 420
+      },
+      {
+        "path": "Pojlib-reference/src/main/jni/Application.mk",
+        "size": 21,
+        "mode": 420
+      },
+      {
+        "path": "Pojlib-reference/src/main/jni/awt_bridge.c",
+        "size": 13507,
+        "mode": 420
+      },
+      {
+        "path": "Pojlib-reference/src/main/jni/awt_xawt/xawt_fake.c",
+        "size": 3976,
+        "mode": 420
+      },
+      {
+        "path": "Pojlib-reference/src/main/jni/egl_bridge.c",
+        "size": 9056,
+        "mode": 420
+      },
+      {
+        "path": "Pojlib-reference/src/main/jni/environ/environ.c",
+        "size": 990,
+        "mode": 420
+      },
+      {
+        "path": "Pojlib-reference/src/main/jni/environ/environ.h",
+        "size": 2876,
+        "mode": 420
+      },
+      {
+        "path": "Pojlib-reference/src/main/jni/GL/gl.h",
+        "size": 82494,
+        "mode": 420
+      },
+      {
+        "path": "Pojlib-reference/src/main/jni/GL/glext.h",
+        "size": 861049,
+        "mode": 420
+      },
+      {
+        "path": "Pojlib-reference/src/main/jni/input_bridge_v3.c",
+        "size": 31771,
+        "mode": 420
+      },
+      {
+        "path": "Pojlib-reference/src/main/jni/jre_launcher.c",
+        "size": 6427,
+        "mode": 420
+      },
+      {
+        "path": "Pojlib-reference/src/main/jni/libopenxr_loader.so",
+        "size": 1583672,
+        "mode": 420
+      },
+      {
+        "path": "Pojlib-reference/src/main/jni/log.h",
+        "size": 475,
+        "mode": 420
+      },
+      {
+        "path": "Pojlib-reference/src/main/jni/openxr/openxr_loader_negotiation.h",
+        "size": 5150,
+        "mode": 420
+      },
+      {
+        "path": "Pojlib-reference/src/main/jni/openxr/openxr_platform_defines.h",
+        "size": 4027,
+        "mode": 420
+      },
+      {
+        "path": "Pojlib-reference/src/main/jni/openxr/openxr_platform.h",
+        "size": 34119,
+        "mode": 420
+      },
+      {
+        "path": "Pojlib-reference/src/main/jni/openxr/openxr_reflection_parent_structs.h",
+        "size": 16725,
+        "mode": 420
+      },
+      {
+        "path": "Pojlib-reference/src/main/jni/openxr/openxr_reflection_structs.h",
+        "size": 42803,
+        "mode": 420
+      },
+      {
+        "path": "Pojlib-reference/src/main/jni/openxr/openxr_reflection.h",
+        "size": 296757,
+        "mode": 420
+      },
+      {
+        "path": "Pojlib-reference/src/main/jni/openxr/openxr.h",
+        "size": 371037,
+        "mode": 420
+      },
+      {
+        "path": "Pojlib-reference/src/main/jni/stdio_is.c",
+        "size": 2085,
+        "mode": 420
+      },
+      {
+        "path": "Pojlib-reference/src/main/jni/utils.c",
+        "size": 4701,
+        "mode": 420
+      },
+      {
+        "path": "Pojlib-reference/src/main/jni/utils.h",
+        "size": 1039,
+        "mode": 420
+      },
+      {
+        "path": "Pojlib-reference/src/main/jni/vloader.cpp",
+        "size": 2355,
+        "mode": 420
+      },
+      {
+        "path": "Pojlib-reference/src/main/jniLibs/arm64-v8a/libjnidispatch.so",
+        "size": 176520,
+        "mode": 420
+      },
+      {
+        "path": "Pojlib-reference/src/main/jniLibs/arm64-v8a/libltw.so",
+        "size": 1633600,
+        "mode": 420
+      },
+      {
+        "path": "Pojlib-reference/src/main/jniLibs/arm64-v8a/liblwjgl_lmdb.so",
+        "size": 88040,
+        "mode": 420
+      },
+      {
+        "path": "Pojlib-reference/src/main/jniLibs/arm64-v8a/liblwjgl_nanovg.so",
+        "size": 351376,
+        "mode": 420
+      },
+      {
+        "path": "Pojlib-reference/src/main/jniLibs/arm64-v8a/liblwjgl_opengl.so",
+        "size": 360280,
+        "mode": 420
+      },
+      {
+        "path": "Pojlib-reference/src/main/jniLibs/arm64-v8a/liblwjgl_opengles.so",
+        "size": 149144,
+        "mode": 420
+      },
+      {
+        "path": "Pojlib-reference/src/main/jniLibs/arm64-v8a/liblwjgl_openvr.so",
+        "size": 5552,
+        "mode": 420
+      },
+      {
+        "path": "Pojlib-reference/src/main/jniLibs/arm64-v8a/liblwjgl_stb.so",
+        "size": 347408,
+        "mode": 420
+      },
+      {
+        "path": "Pojlib-reference/src/main/jniLibs/arm64-v8a/liblwjgl_tinyfd.so",
+        "size": 81912,
+        "mode": 420
+      },
+      {
+        "path": "Pojlib-reference/src/main/jniLibs/arm64-v8a/liblwjgl.so",
+        "size": 495456,
+        "mode": 420
+      },
+      {
+        "path": "Pojlib-reference/src/main/jniLibs/arm64-v8a/libopenal.so",
+        "size": 15914936,
+        "mode": 420
+      },
+      {
+        "path": "Pojlib-reference/src/main/jniLibs/arm64-v8a/libsqlitejdbc.so",
+        "size": 1144552,
+        "mode": 420
+      },
+      {
+        "path": "Pojlib-reference/supportedVersions.json",
+        "size": 156,
+        "mode": 420
+      },
+      {
+        "path": "README.md",
+        "size": 1281,
+        "mode": 420
+      },
+      {
+        "path": "android/build.gradle",
+        "size": 1263,
+        "mode": 420
+      },
+      {
+        "path": "android/consumer-rules.pro",
+        "size": 441,
+        "mode": 420
+      },
+      {
+        "path": "android/libs/Pojlib-release.aar",
+        "size": 6649873,
+        "mode": 420
+      },
+      {
+        "path": "android/src/main/AndroidManifest.xml",
+        "size": 1821,
+        "mode": 420
+      },
+      {
+        "path": "android/src/main/java/dev/justfeli/pojlibexpo/PojlibBridge.kt",
+        "size": 11411,
+        "mode": 420
+      },
+      {
+        "path": "android/src/main/java/dev/justfeli/pojlibexpo/PojlibExpoModule.kt",
+        "size": 8301,
+        "mode": 420
+      },
+      {
+        "path": "android/src/main/java/dev/justfeli/pojlibexpo/PojlibExpoView.kt",
+        "size": 1141,
+        "mode": 420
+      },
+      {
+        "path": "android/src/main/java/dev/justfeli/pojlibexpo/PojlibVrActivity.java",
+        "size": 5029,
+        "mode": 420
+      },
+      {
+        "path": "build/index.d.ts",
+        "size": 2977,
+        "mode": 420
+      },
+      {
+        "path": "build/index.d.ts.map",
+        "size": 1437,
+        "mode": 420
+      },
+      {
+        "path": "build/index.js",
+        "size": 4086,
+        "mode": 420
+      },
+      {
+        "path": "build/index.js.map",
+        "size": 8273,
+        "mode": 420
+      },
+      {
+        "path": "build/PojlibExpo.types.d.ts",
+        "size": 2786,
+        "mode": 420
+      },
+      {
+        "path": "build/PojlibExpo.types.d.ts.map",
+        "size": 3090,
+        "mode": 420
+      },
+      {
+        "path": "build/PojlibExpo.types.js",
+        "size": 55,
+        "mode": 420
+      },
+      {
+        "path": "build/PojlibExpo.types.js.map",
+        "size": 2857,
+        "mode": 420
+      },
+      {
+        "path": "build/PojlibExpoModule.d.ts",
+        "size": 2367,
+        "mode": 420
+      },
+      {
+        "path": "build/PojlibExpoModule.d.ts.map",
+        "size": 2114,
+        "mode": 420
+      },
+      {
+        "path": "build/PojlibExpoModule.js",
+        "size": 138,
+        "mode": 420
+      },
+      {
+        "path": "build/PojlibExpoModule.js.map",
+        "size": 2735,
+        "mode": 420
+      },
+      {
+        "path": "build/PojlibExpoModule.web.d.ts",
+        "size": 1173,
+        "mode": 420
+      },
+      {
+        "path": "build/PojlibExpoModule.web.d.ts.map",
+        "size": 524,
+        "mode": 420
+      },
+      {
+        "path": "build/PojlibExpoModule.web.js",
+        "size": 2040,
+        "mode": 420
+      },
+      {
+        "path": "build/PojlibExpoModule.web.js.map",
+        "size": 3757,
+        "mode": 420
+      },
+      {
+        "path": "build/PojlibExpoView.d.ts",
+        "size": 221,
+        "mode": 420
+      },
+      {
+        "path": "build/PojlibExpoView.d.ts.map",
+        "size": 262,
+        "mode": 420
+      },
+      {
+        "path": "build/PojlibExpoView.js",
+        "size": 255,
+        "mode": 420
+      },
+      {
+        "path": "build/PojlibExpoView.js.map",
+        "size": 721,
+        "mode": 420
+      },
+      {
+        "path": "build/PojlibExpoView.web.d.ts",
+        "size": 225,
+        "mode": 420
+      },
+      {
+        "path": "build/PojlibExpoView.web.d.ts.map",
+        "size": 270,
+        "mode": 420
+      },
+      {
+        "path": "build/PojlibExpoView.web.js",
+        "size": 276,
+        "mode": 420
+      },
+      {
+        "path": "build/PojlibExpoView.web.js.map",
+        "size": 893,
+        "mode": 420
+      },
+      {
+        "path": "eas.json",
+        "size": 344,
+        "mode": 420
+      },
+      {
+        "path": "expo-module.config.json",
+        "size": 181,
+        "mode": 420
+      },
+      {
+        "path": "ios/PojlibExpo.podspec",
+        "size": 779,
+        "mode": 420
+      },
+      {
+        "path": "ios/PojlibExpoModule.swift",
+        "size": 288,
+        "mode": 420
+      },
+      {
+        "path": "ios/PojlibExpoView.swift",
+        "size": 987,
+        "mode": 420
+      },
+      {
+        "path": "package.json",
+        "size": 1333,
+        "mode": 420
+      },
+      {
+        "path": "scripts/prepare.js",
+        "size": 671,
+        "mode": 420
+      },
+      {
+        "path": "scripts/sync-pojlib-aar.ps1",
+        "size": 500,
+        "mode": 420
+      },
+      {
+        "path": "scripts/with-node.sh",
+        "size": 1215,
+        "mode": 420
+      },
+      {
+        "path": "src/index.ts",
+        "size": 4558,
+        "mode": 420
+      },
+      {
+        "path": "src/PojlibExpo.types.ts",
+        "size": 2595,
+        "mode": 420
+      },
+      {
+        "path": "src/PojlibExpoModule.ts",
+        "size": 2432,
+        "mode": 420
+      },
+      {
+        "path": "src/PojlibExpoModule.web.ts",
+        "size": 1925,
+        "mode": 420
+      },
+      {
+        "path": "src/PojlibExpoView.tsx",
+        "size": 338,
+        "mode": 420
+      },
+      {
+        "path": "src/PojlibExpoView.web.tsx",
+        "size": 348,
+        "mode": 420
+      },
+      {
+        "path": "tsconfig.json",
+        "size": 239,
+        "mode": 420
+      }
+    ],
+    "entryCount": 201,
+    "bundled": []
+  }
+]
