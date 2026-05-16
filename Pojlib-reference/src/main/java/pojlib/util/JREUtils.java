@@ -309,6 +309,7 @@ public class JREUtils {
         File resConfFile = new File(Constants.USER_HOME + "/hacks/resolv.conf");
         File jnaTempDir = new File(ctx.getCacheDir(), "jna");
         String packagedNativeLibDir = ctx.getApplicationInfo().nativeLibraryDir;
+        String combinedNativeLibPath = sNativeLibDir + ":" + packagedNativeLibDir;
         if (!jnaTempDir.exists()) {
             jnaTempDir.mkdirs();
         }
@@ -327,11 +328,11 @@ public class JREUtils {
                 "-Duser.language=" + System.getProperty("user.language"),
                 "-Dos.name=Linux",
                 "-Dos.version=Android-" + Build.VERSION.RELEASE,
-                "-Dorg.lwjgl.librarypath=" + packagedNativeLibDir,
-                "-Djna.boot.library.path=" + packagedNativeLibDir,
+                "-Dorg.lwjgl.librarypath=" + sNativeLibDir,
+                "-Djna.boot.library.path=" + sNativeLibDir,
                 "-Djna.tmpdir=" + jnaTempDir.getAbsolutePath(),
                 "-Djna.nosys=true",
-                "-Djava.library.path=" + packagedNativeLibDir,
+                "-Djava.library.path=" + combinedNativeLibPath,
                 "-Dglfwstub.windowWidth=" + 1280,
                 "-Dglfwstub.windowHeight=" + 720,
                 "-Dglfwstub.initEgl=false",
@@ -339,7 +340,7 @@ public class JREUtils {
                 "-Dnet.minecraft.clientmodname=" + "QuestCraft",
                 "-Dext.net.resolvPath=" + resConfFile,
                 "-Dsodium.checks.issue2561=false",
-                "-Dorg.sqlite.lib.path=" + packagedNativeLibDir
+                "-Dorg.sqlite.lib.path=" + sNativeLibDir
         ));
     }
 
