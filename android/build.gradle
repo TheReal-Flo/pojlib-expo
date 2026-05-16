@@ -8,9 +8,24 @@ version = '0.1.0'
 
 def pojlibAarName = 'Pojlib-release'
 def pojlibAarFile = file("libs/${pojlibAarName}.aar")
+def extractedPojlibJniDir = file("$buildDir/generated/pojlib-jni")
 
 if (!pojlibAarFile.exists()) {
   throw new GradleException("Missing ${pojlibAarFile.name} in android/libs. Copy the Pojlib AAR into android/libs before building Android.")
+}
+
+tasks.register("extractPojlibJni") {
+  inputs.file(pojlibAarFile)
+  outputs.dir(extractedPojlibJniDir)
+
+  doLast {
+    delete(extractedPojlibJniDir)
+    copy {
+      from(zipTree(pojlibAarFile))
+      into(extractedPojlibJniDir)
+      include "jni/**"
+    }
+  }
 }
 
 android {
@@ -24,6 +39,15 @@ android {
   lintOptions {
     abortOnError false
   }
+  sourceSets {
+    main {
+      jniLibs.srcDirs += ["$buildDir/generated/pojlib-jni/jni"]
+    }
+  }
+}
+
+tasks.named("preBuild").configure {
+  dependsOn("extractPojlibJni")
 }
 
 dependencies {

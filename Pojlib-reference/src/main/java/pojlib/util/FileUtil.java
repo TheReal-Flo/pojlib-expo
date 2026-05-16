@@ -8,6 +8,7 @@ import org.apache.commons.io.FileUtils;
 import java.io.*;
 import java.nio.file.Files;
 import java.nio.file.Paths;
+import java.util.Arrays;
 import java.util.Enumeration;
 import java.util.Objects;
 import java.util.zip.ZipEntry;
@@ -39,7 +40,7 @@ public class FileUtil {
 
     public static boolean matchingAssetFile(File sourceFile, byte[] assetFile) throws IOException {
         byte[] sf = Files.readAllBytes(sourceFile.toPath());
-        return sf == assetFile;
+        return Arrays.equals(sf, assetFile);
     }
 
     public static String read(String path) throws IOException {
