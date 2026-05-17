@@ -301,13 +301,13 @@ public final class GL {
             (System.getenv("POJAV_RENDERER") != null || System.getenv("POJLIB_RENDERER") != null);
     }
 
-    private static native int pojavProbeInt(int pname);
+    static native int pojavProbeInt(int pname);
 
     @Nullable
-    private static native String pojavProbeString(int name);
+    static native String pojavProbeString(int name);
 
     @Nullable
-    private static native String pojavProbeStringi(int name, int index);
+    static native String pojavProbeStringi(int name, int index);
 
     /**
      * Creates a new {@link GLCapabilities} instance for the OpenGL context that is current in the current thread.
