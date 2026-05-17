@@ -12,6 +12,7 @@ import dalvik.annotation.optimization.CriticalNative;
 import pojlib.PojlibRuntimeHost;
 import pojlib.input.GrabListener;
 import pojlib.input.LwjglGlfwKeycode;
+import pojlib.util.Logger;
 
 public class CallbackBridge {
     private static boolean isGrabbing = false;
@@ -167,6 +168,15 @@ public class CallbackBridge {
     }
 
     public static void restartUnitySession(Activity activity) {
+        Logger.getInstance().appendToLog(
+            "CallbackBridge: restartUnitySession requested. activity=" +
+                (activity == null ? "<null>" : activity.getClass().getName()) +
+                ", thread=" + Thread.currentThread().getName()
+        );
+        Logger.getInstance().appendThrowable(
+            "CallbackBridge: restartUnitySession caller trace.",
+            new Throwable("restartUnitySession")
+        );
         PojlibRuntimeHost.restartRuntime(activity);
     }
 

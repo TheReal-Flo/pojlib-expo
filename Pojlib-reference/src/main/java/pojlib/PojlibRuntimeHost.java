@@ -218,15 +218,41 @@ public final class PojlibRuntimeHost {
     }
 
     public static void restartRuntime(Activity activity) {
+        Logger.getInstance().appendToLog(
+            "PojlibRuntimeHost: restartRuntime requested. activity=" +
+                (activity == null ? "<null>" : activity.getClass().getName()) +
+                ", currentActivity=" +
+                (currentActivity == null ? "<null>" : currentActivity.getClass().getName()) +
+                ", thread=" + Thread.currentThread().getName()
+        );
+        Logger.getInstance().appendThrowable(
+            "PojlibRuntimeHost: restartRuntime caller trace.",
+            new Throwable("restartRuntime")
+        );
+        if (activity == null) {
+            Logger.getInstance().appendToLog("PojlibRuntimeHost: restartRuntime aborted because activity is null.");
+            return;
+        }
         activity.runOnUiThread(() -> {
             Intent start = activity.getPackageManager().getLaunchIntentForPackage(activity.getApplicationInfo().packageName);
             if (start == null) {
                 Logger.getInstance().appendToLog("Unable to restart runtime: launch intent missing.");
                 return;
             }
+            Logger.getInstance().appendToLog(
+                "PojlibRuntimeHost: restartRuntime launching intent. component=" +
+                    start.getComponent() +
+                    ", package=" + start.getPackage() +
+                    ", flags(before)=" + start.getFlags()
+            );
             start.setFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TASK);
+            Logger.getInstance().appendToLog(
+                "PojlibRuntimeHost: restartRuntime startActivity with flags=" + start.getFlags()
+            );
             activity.startActivity(start);
+            Logger.getInstance().appendToLog("PojlibRuntimeHost: restartRuntime calling finish() on activity.");
             activity.finish();
+            Logger.getInstance().appendToLog("PojlibRuntimeHost: restartRuntime killing process pid=" + Process.myPid());
             Process.killProcess(Process.myPid());
         });
     }

@@ -37,8 +37,16 @@ public class CallbackBridge {
 	
 	    //Quick and dirty: debul all key inputs to System.out
 */
+        Runtime.getRuntime().addShutdownHook(new Thread(CallbackBridge::logAndRestartUnitySession, "LWJGL-RestartHook"));
+    }
 
-        Runtime.getRuntime().addShutdownHook(new Thread(CallbackBridge::restartUnitySession));
+    private static void logAndRestartUnitySession() {
+        System.out.println("[LWJGL] Shutdown hook invoked on thread " + Thread.currentThread().getName());
+        System.out.println("[LWJGL] Shutdown hook stack:");
+        for (StackTraceElement element : Thread.currentThread().getStackTrace()) {
+            System.out.println("\tat " + element);
+        }
+        restartUnitySession();
     }
 
     public static native void restartUnitySession();
