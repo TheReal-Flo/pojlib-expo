@@ -31,6 +31,7 @@ object PojlibBridge {
 
   fun configure(
     model: String?,
+    renderer: String?,
     memoryValue: String?,
     developerMods: Boolean?,
     ignoreInstanceName: Boolean?,
@@ -38,6 +39,7 @@ object PojlibBridge {
     advancedDebugger: Boolean?
   ) {
     model?.let { API.model = it }
+    renderer?.let { API.renderer = it }
     memoryValue?.let { API.memoryValue = it }
     developerMods?.let { API.developerMods = it }
     ignoreInstanceName?.let { API.ignoreInstanceName = it }
@@ -65,6 +67,7 @@ object PojlibBridge {
       "isDemoMode" to API.isDemoMode,
       "gameReady" to API.gameReady,
       "model" to API.model,
+      "renderer" to API.renderer,
       "currentAccount" to API.currentAcc?.let { accountToMap(it) },
       "currentInstance" to API.currentInstance?.let { instanceToMap(it) }
     )

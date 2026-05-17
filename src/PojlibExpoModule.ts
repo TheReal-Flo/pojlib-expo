@@ -19,6 +19,7 @@ declare class PojlibExpoModule extends NativeModule<PojlibExpoModuleEvents> {
   initialize(): Promise<PojlibStatus>;
   configure(
     model: string | null,
+    renderer: string | null,
     memoryValue: string | null,
     developerMods: boolean | null,
     ignoreInstanceName: boolean | null,

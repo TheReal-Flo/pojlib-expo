@@ -43,6 +43,30 @@ public class JREUtils {
     private static String sNativeLibDir;
     private static String runtimeDir;
 
+    private static String getSelectedRenderer() {
+        String renderer = API.renderer;
+        if (renderer == null) {
+            return "LightThinWrapper";
+        }
+
+        String normalized = renderer.trim();
+        if (normalized.isEmpty()) {
+            return "LightThinWrapper";
+        }
+
+        if (normalized.equalsIgnoreCase("ltw") || normalized.equalsIgnoreCase("lightthinwrapper")) {
+            return "LightThinWrapper";
+        }
+        if (normalized.equalsIgnoreCase("mobileglues")) {
+            return "MobileGLUES";
+        }
+        return normalized;
+    }
+
+    private static boolean isLightThinWrapperRenderer() {
+        return "LightThinWrapper".equals(getSelectedRenderer());
+    }
+
     public static String findInLdLibPath(String libName) {
         if(Os.getenv("LD_LIBRARY_PATH")==null) {
             try {
@@ -167,15 +191,20 @@ public class JREUtils {
         }
 
         Map<String, String> envMap = new ArrayMap<>();
-        envMap.put("POJLIB_NATIVEDIR", sNativeLibDir);
+        String renderer = getSelectedRenderer();
+        String packagedNativeLibDir = activity.getApplicationInfo().nativeLibraryDir;
+        String rendererNativeDir = isLightThinWrapperRenderer() ? packagedNativeLibDir : sNativeLibDir;
+        envMap.put("POJLIB_NATIVEDIR", rendererNativeDir);
         envMap.put("JAVA_HOME", Constants.getRuntimeDir().getAbsolutePath());
         envMap.put("HOME", instance.gameDir);
         //envMap.put("APP_HOME", Constants.USER_HOME);
         envMap.put("TMPDIR", activity.getCacheDir().getAbsolutePath());
         envMap.put("JNA_TMPDIR", jnaTempDir.getAbsolutePath());
         envMap.put("VR_MODEL", API.model);
-        envMap.put("POJLIB_RENDERER", "MobileGLUES");
-        envMap.put("MG_DIR_PATH", mgDir.getAbsolutePath());
+        envMap.put("POJLIB_RENDERER", renderer);
+        if (!isLightThinWrapperRenderer()) {
+            envMap.put("MG_DIR_PATH", mgDir.getAbsolutePath());
+        }
 
         envMap.put("LD_LIBRARY_PATH", LD_LIBRARY_PATH);
         envMap.put("PATH", Constants.getInternalHomeFile("runtimes/JRE/bin").getAbsolutePath() + ":" + Os.getenv("PATH"));
@@ -192,6 +221,11 @@ public class JREUtils {
             reader.close();
         }
         envMap.put("LIBGL_ES", "2");
+        Logger.getInstance().appendToLog(
+                "JREUtils: Selected renderer=" + renderer +
+                        ", graphicsLib=" + loadGraphicsLibrary() +
+                        ", nativeDir=" + rendererNativeDir
+        );
         for (Map.Entry<String, String> env : envMap.entrySet()) {
             Logger.getInstance().appendToLog("Added custom env: " + env.getKey() + "=" + env.getValue());
             Os.setenv(env.getKey(), env.getValue(), true);
@@ -396,7 +430,7 @@ public class JREUtils {
      * @return The name of the loaded library
      */
     public static String loadGraphicsLibrary(){
-        return "libmobileglues.so";
+        return isLightThinWrapperRenderer() ? "libltw.so" : "libmobileglues.so";
     }
 
     public static native long getEGLContextPtr();

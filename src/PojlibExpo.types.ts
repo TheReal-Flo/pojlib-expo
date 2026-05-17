@@ -56,6 +56,7 @@ export type PojlibStatus = {
   isDemoMode: boolean;
   gameReady: boolean;
   model: string;
+  renderer: string;
   currentAccount: PojlibAccount | null;
   currentInstance: PojlibInstance | null;
 };
@@ -67,6 +68,7 @@ export type PojlibDownloadStatus = {
 
 export type PojlibConfig = {
   model?: string | null;
+  renderer?: string | null;
   memoryValue?: string | null;
   developerMods?: boolean | null;
   ignoreInstanceName?: boolean | null;

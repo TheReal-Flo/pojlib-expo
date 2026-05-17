@@ -33,6 +33,7 @@ class PojlibExpoModule : Module() {
 
     AsyncFunction("configure") {
       model: String?,
+      renderer: String?,
       memoryValue: String?,
       developerMods: Boolean?,
       ignoreInstanceName: Boolean?,
@@ -47,6 +48,7 @@ class PojlibExpoModule : Module() {
       attachLogListener()
       PojlibBridge.configure(
         model,
+        renderer,
         memoryValue,
         developerMods,
         ignoreInstanceName,

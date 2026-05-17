@@ -36,6 +36,7 @@ export function initializePojlib() {
 export function configurePojlib(config: PojlibConfig) {
   return PojlibExpoModule.configure(
     config.model ?? null,
+    config.renderer ?? null,
     config.memoryValue ?? null,
     config.developerMods ?? null,
     config.ignoreInstanceName ?? null,
