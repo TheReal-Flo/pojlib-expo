@@ -275,6 +275,35 @@ JNIEXPORT JNICALL jlong
 Java_org_lwjgl_opengl_GL_getGraphicsBufferAddr(JNIEnv *env, jobject thiz) {
     return (jlong) &gbuffer;
 }
+JNIEXPORT JNICALL jint
+Java_org_lwjgl_opengl_GL_pojavProbeInt(JNIEnv *env, jclass clazz, jint pname) {
+    (void) env;
+    (void) clazz;
+
+    GLint value = 0;
+    glGetIntegerv((GLenum) pname, &value);
+    return value;
+}
+JNIEXPORT JNICALL jstring
+Java_org_lwjgl_opengl_GL_pojavProbeString(JNIEnv *env, jclass clazz, jint name) {
+    (void) clazz;
+
+    const GLubyte* value = glGetString((GLenum) name);
+    if (value == NULL) {
+        return NULL;
+    }
+    return (*env)->NewStringUTF(env, (const char*) value);
+}
+JNIEXPORT JNICALL jstring
+Java_org_lwjgl_opengl_GL_pojavProbeStringi(JNIEnv *env, jclass clazz, jint name, jint index) {
+    (void) clazz;
+
+    const GLubyte* value = glGetStringi((GLenum) name, (GLuint) index);
+    if (value == NULL) {
+        return NULL;
+    }
+    return (*env)->NewStringUTF(env, (const char*) value);
+}
 JNIEXPORT JNICALL jintArray
 Java_org_lwjgl_opengl_GL_getNativeWidthHeight(JNIEnv *env, jobject thiz) {
     jintArray ret = (*env)->NewIntArray(env,2);
