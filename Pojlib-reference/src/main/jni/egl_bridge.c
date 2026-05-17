@@ -30,9 +30,11 @@ typedef EGLBoolean eglInitialize_t (EGLDisplay dpy, EGLint *major, EGLint *minor
 typedef EGLBoolean eglChooseConfig_t (EGLDisplay dpy, const EGLint *attrib_list, EGLConfig *configs, EGLint config_size, EGLint *num_config);
 typedef EGLBoolean eglGetConfigAttrib_t (EGLDisplay dpy, EGLConfig config, EGLint attribute, EGLint *value);
 typedef EGLBoolean eglBindAPI_t (EGLenum api);
+typedef EGLSurface eglCreatePbufferSurface_t (EGLDisplay dpy, EGLConfig config, const EGLint *attrib_list);
 typedef EGLContext eglCreateContext_t (EGLDisplay dpy, EGLConfig config, EGLContext share_context, const EGLint *attrib_list);
 typedef EGLBoolean eglMakeCurrent_t (EGLDisplay dpy, EGLSurface draw, EGLSurface read, EGLContext ctx);
 typedef EGLint eglGetError_t (void);
+typedef EGLBoolean eglSwapBuffers_t (EGLDisplay dpy, EGLSurface surface);
 typedef EGLBoolean eglSwapInterval_t (EGLDisplay dpy, EGLint interval);
 typedef __eglMustCastToProperFunctionPointerType eglGetProcAddress_t (const char *procname);
 
@@ -41,9 +43,11 @@ eglInitialize_t* eglInitialize_p;
 eglChooseConfig_t* eglChooseConfig_p;
 eglGetConfigAttrib_t* eglGetConfigAttrib_p;
 eglBindAPI_t* eglBindAPI_p;
+eglCreatePbufferSurface_t* eglCreatePbufferSurface_p;
 eglCreateContext_t* eglCreateContext_p;
 eglMakeCurrent_t* eglMakeCurrent_p;
 eglGetError_t* eglGetError_p;
+eglSwapBuffers_t* eglSwapBuffers_p;
 eglSwapInterval_t* eglSwapInterval_p;
 eglGetProcAddress_t* eglGetProcAddress_p;
 
@@ -64,16 +68,28 @@ void pojavTerminate() {
 }
 
 void dlsym_egl() {
-    void* handle = dlopen("libmobileglues.so", RTLD_NOW);
+    const char* renderer = getenv("POJLIB_RENDERER");
+    const char* eglLib =
+            renderer != NULL && strcmp(renderer, "LightThinWrapper") == 0
+                    ? "libltw.so"
+                    : "libmobileglues.so";
+    void* handle = dlopen(eglLib, RTLD_NOW);
+    if (handle == NULL) {
+        printf("EGLBridge: Error dlopen(%s) failed: %s\n", eglLib, dlerror());
+        return;
+    }
+    printf("EGLBridge: Resolving EGL symbols from %s\n", eglLib);
     eglGetProcAddress_p = (eglGetProcAddress_t*) dlsym(handle, "eglGetProcAddress");
     eglGetDisplay_p = (eglGetDisplay_t*) eglGetProcAddress_p("eglGetDisplay");
     eglInitialize_p = (eglInitialize_t*) eglGetProcAddress_p("eglInitialize");
     eglChooseConfig_p = (eglChooseConfig_t*) eglGetProcAddress_p("eglChooseConfig");
     eglGetConfigAttrib_p = (eglGetConfigAttrib_t*) eglGetProcAddress_p("eglGetConfigAttrib");
     eglBindAPI_p = (eglBindAPI_t*) eglGetProcAddress_p("eglBindAPI");
+    eglCreatePbufferSurface_p = (eglCreatePbufferSurface_t*) eglGetProcAddress_p("eglCreatePbufferSurface");
     eglCreateContext_p = (eglCreateContext_t*) eglGetProcAddress_p("eglCreateContext");
     eglMakeCurrent_p = (eglMakeCurrent_t*) eglGetProcAddress_p("eglMakeCurrent");
     eglGetError_p = (eglGetError_t*) eglGetProcAddress_p("eglGetError");
+    eglSwapBuffers_p = (eglSwapBuffers_t*) eglGetProcAddress_p("eglSwapBuffers");
     eglSwapInterval_p = (eglSwapInterval_t*) eglGetProcAddress_p("eglSwapInterval");
 }
 
@@ -142,9 +158,22 @@ int xrEglInit() {
 
     eglBindAPI_p(EGL_OPENGL_ES_API);
 
+    const EGLint pbufferAttribs[] = {
+            EGL_WIDTH, 16,
+            EGL_HEIGHT, 16,
+            EGL_NONE
+    };
+    xrEglSurface = eglCreatePbufferSurface_p(xrEglDisplay, xrConfig, pbufferAttribs);
+    if (xrEglSurface == EGL_NO_SURFACE) {
+        printf("EGLBridge: Error eglCreatePbufferSurface() failed: %p\n", eglGetError_p());
+        return 0;
+    }
+    printf("Created pbuffersurface\n");
+
     printf("XREGLBridge: Initialized!\n");
     printf("XREGLBridge: ThreadID=%d\n", gettid());
     printf("XREGLBridge: XREGLDisplay=%p\n", xrEglDisplay);
+    printf("XREGLBridge: XREGLSurface=%p\n", xrEglSurface);
 
     return 1;
 }
@@ -164,14 +193,17 @@ void pojavSetWindowHint(int hint, int value) {
 
 int32_t stride;
 void pojavSwapBuffers() {
+    if (xrEglDisplay != EGL_NO_DISPLAY && xrEglSurface != EGL_NO_SURFACE) {
+        eglSwapBuffers_p(xrEglDisplay, xrEglSurface);
+    }
 }
 
 bool locked = false;
 void pojavMakeCurrent(void* window) {
     EGLBoolean success = eglMakeCurrent_p(
             xrEglDisplay,
-            EGL_NO_SURFACE,
-            EGL_NO_SURFACE,
+            xrEglSurface,
+            xrEglSurface,
             window
     );
 
@@ -217,7 +249,10 @@ Java_org_lwjgl_glfw_GLFWNativeEGL_nglfwGetEGLContext(JNIEnv *env, jclass clazz, 
 
 JNIEXPORT JNICALL jlong
 Java_org_lwjgl_glfw_GLFWNativeEGL_nglfwGetEGLSurface(JNIEnv *env, jclass clazz, jlong window) {
-    return (jlong) EGL_NO_SURFACE;
+    (void) env;
+    (void) clazz;
+    (void) window;
+    return (jlong) xrEglSurface;
 }
 
 JNIEXPORT JNICALL jlong
