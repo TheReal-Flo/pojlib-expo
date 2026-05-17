@@ -329,6 +329,8 @@ public class JREUtils {
                 "-Dos.name=Linux",
                 "-Dos.version=Android-" + Build.VERSION.RELEASE,
                 "-Dorg.lwjgl.librarypath=" + sNativeLibDir,
+                "-Dorg.lwjgl.util.Debug=true",
+                "-Dorg.lwjgl.util.DebugLoader=true",
                 "-Djna.boot.library.path=" + sNativeLibDir,
                 "-Djna.tmpdir=" + jnaTempDir.getAbsolutePath(),
                 "-Djna.nosys=true",

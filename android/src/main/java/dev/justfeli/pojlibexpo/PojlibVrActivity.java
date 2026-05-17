@@ -1,6 +1,7 @@
 package dev.justfeli.pojlibexpo;
 
 import android.os.Bundle;
+import android.util.Log;
 import android.view.WindowManager;
 
 import pojlib.API;
@@ -36,10 +37,28 @@ public class PojlibVrActivity extends PojlibRuntimeActivity {
   }
 
   @Override
+  protected void onStart() {
+    super.onStart();
+    Logger.getInstance().appendToLog("PojlibVrActivity: Started.");
+  }
+
+  @Override
   protected void onPause() {
     resumed = false;
-    Logger.getInstance().appendToLog("PojlibVrActivity: Paused.");
+    Logger.getInstance().appendToLog(
+      "PojlibVrActivity: Paused. finishing=" + isFinishing() +
+        ", changingConfigurations=" + isChangingConfigurations()
+    );
     super.onPause();
+  }
+
+  @Override
+  protected void onStop() {
+    Logger.getInstance().appendToLog(
+      "PojlibVrActivity: Stopped. finishing=" + isFinishing() +
+        ", changingConfigurations=" + isChangingConfigurations()
+    );
+    super.onStop();
   }
 
   @Override
@@ -57,9 +76,31 @@ public class PojlibVrActivity extends PojlibRuntimeActivity {
   public void onWindowFocusChanged(boolean hasFocus) {
     super.onWindowFocusChanged(hasFocus);
     hasWindowFocus = hasFocus;
+    Logger.getInstance().appendToLog(
+      "PojlibVrActivity: Window focus changed. hasFocus=" + hasFocus +
+        ", launchStarted=" + launchStarted +
+        ", resumed=" + resumed
+    );
     if (hasFocus) {
       maybeStartLaunch();
     }
+  }
+
+  @Override
+  protected void onUserLeaveHint() {
+    Logger.getInstance().appendToLog("PojlibVrActivity: onUserLeaveHint.");
+    super.onUserLeaveHint();
+  }
+
+  @Override
+  public void finish() {
+    Logger.getInstance().appendToLog(
+      "PojlibVrActivity: finish() requested. finishing=" + isFinishing() +
+        ", launchStarted=" + launchStarted +
+        ", gameReady=" + API.gameReady
+    );
+    Logger.getInstance().appendToLog(Log.getStackTraceString(new Throwable("PojlibVrActivity.finish trace")));
+    super.finish();
   }
 
   private void maybeStartLaunch() {
