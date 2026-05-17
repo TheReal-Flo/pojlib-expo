@@ -202,6 +202,7 @@ public class JREUtils {
         envMap.put("JNA_TMPDIR", jnaTempDir.getAbsolutePath());
         envMap.put("VR_MODEL", API.model);
         envMap.put("POJLIB_RENDERER", renderer);
+        envMap.put("POJAV_RENDERER", renderer);
         if (!isLightThinWrapperRenderer()) {
             envMap.put("MG_DIR_PATH", mgDir.getAbsolutePath());
         }
