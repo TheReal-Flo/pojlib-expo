@@ -304,6 +304,27 @@ Java_org_lwjgl_opengl_GL_pojavProbeStringi(JNIEnv *env, jclass clazz, jint name,
     }
     return (*env)->NewStringUTF(env, (const char*) value);
 }
+JNIEXPORT JNICALL jlong
+Java_org_lwjgl_opengl_GL11C_nglGetString(JNIEnv *env, jclass clazz, jint name) {
+    (void) env;
+    (void) clazz;
+
+    return (jlong) (uintptr_t) glGetString((GLenum) name);
+}
+JNIEXPORT JNICALL void
+Java_org_lwjgl_opengl_GL11C_nglGetIntegerv(JNIEnv *env, jclass clazz, jint pname, jlong params) {
+    (void) env;
+    (void) clazz;
+
+    glGetIntegerv((GLenum) pname, (GLint*) (uintptr_t) params);
+}
+JNIEXPORT JNICALL jlong
+Java_org_lwjgl_opengl_GL30C_nglGetStringi(JNIEnv *env, jclass clazz, jint name, jint index) {
+    (void) env;
+    (void) clazz;
+
+    return (jlong) (uintptr_t) glGetStringi((GLenum) name, (GLuint) index);
+}
 JNIEXPORT JNICALL jintArray
 Java_org_lwjgl_opengl_GL_getNativeWidthHeight(JNIEnv *env, jobject thiz) {
     jintArray ret = (*env)->NewIntArray(env,2);
