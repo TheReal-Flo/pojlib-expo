@@ -52,6 +52,8 @@ dependencies {
     implementation("org.json:json:20220924")
     implementation("commons-io:commons-io:2.13.0")
     implementation("commons-codec:commons-codec:1.15")
+    implementation("org.ow2.asm:asm:9.9")
+    implementation("org.ow2.asm:asm-tree:9.9")
     implementation("androidx.annotation:annotation:1.7.1")
     implementation("androidx.core:core:1.13.1")
     implementation("com.microsoft.azure:msal4j:1.17.2")

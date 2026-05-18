@@ -13,6 +13,7 @@ import java.util.List;
 import pojlib.account.MinecraftAccount;
 import pojlib.API;
 import pojlib.InstanceHandler;
+import pojlib.install.VivecraftJarPatcher;
 import pojlib.util.Constants;
 import pojlib.util.download.DownloadManager;
 import pojlib.util.download.DownloadUtils;
@@ -57,6 +58,7 @@ public class MinecraftInstances {
             obj.addProperty("disableGarbageCollectorMessage", "true");
             obj.addProperty("vrHotswitchingEnabled", "false");
             obj.addProperty("seated", "false");
+            obj.remove("weaponCollisionNew");
 
             GsonUtils.objectToJsonFile(config.getAbsolutePath(), obj);
         } catch (Exception e) {
@@ -205,9 +207,10 @@ public class MinecraftInstances {
                     );
                     if(!mod.exists() || !extMod.version.equals(newMod.version)) {
                         DownloadUtils.downloadFile(newMod.download_link, mod);
-                        extMod = newMod;
-                        break;
                     }
+                    maybePatchManagedProject(newMod, mod);
+                    extMod = newMod;
+                    break;
                 }
                 if(manual) {
                     boolean legacyMod = extMod.fileName == null;
@@ -218,11 +221,19 @@ public class MinecraftInstances {
                     if(!mod.exists()) {
                         DownloadUtils.downloadFile(extMod.download_link, mod, 0);
                     }
+                    maybePatchManagedProject(extMod, mod);
                 }
                 newExtMods.add(extMod);
             }
 
             extProjects = newExtMods.toArray(new ProjectInfo[0]);
+        }
+
+        private void maybePatchManagedProject(ProjectInfo projectInfo, File modFile) {
+            if (projectInfo == null || modFile == null || !"Vivecraft".equalsIgnoreCase(projectInfo.slug)) {
+                return;
+            }
+            VivecraftJarPatcher.patchIfNeeded(modFile);
         }
 
         private void downloadAllMods(List<ProjectInfo> newMods) throws IOException {
@@ -233,6 +244,7 @@ public class MinecraftInstances {
                         (legacyMod ? newMod.slug : newMod.fileName) + (newMod.type.equals("resourcepack") ? ".zip" : ".jar")
                 );
                 DownloadUtils.downloadFile(newMod.download_link, mod, 0);
+                maybePatchManagedProject(newMod, mod);
             }
 
             extProjects = newMods.toArray(new ProjectInfo[0]);

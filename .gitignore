@@ -31,6 +31,7 @@ project.xcworkspace
 .classpath
 .cxx
 .gradle
+.gradle-jdk17/
 .idea
 .project
 .settings
@@ -57,3 +58,7 @@ yarn-error.log
 
 # Expo
 .expo/*
+
+# Local tooling / investigation artifacts
+.tools/
+.tmp-vivecraft/

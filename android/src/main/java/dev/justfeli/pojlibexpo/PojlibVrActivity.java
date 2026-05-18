@@ -1,7 +1,11 @@
 package dev.justfeli.pojlibexpo;
 
 import android.os.Bundle;
+import android.os.Build;
 import android.util.Log;
+import android.view.View;
+import android.view.WindowInsets;
+import android.view.WindowInsetsController;
 import android.view.WindowManager;
 
 import pojlib.API;
@@ -24,6 +28,7 @@ public class PojlibVrActivity extends PojlibRuntimeActivity {
   protected void onCreate(Bundle savedInstanceState) {
     super.onCreate(savedInstanceState);
     getWindow().addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
+    applyVrWindowMode();
     installCrashLogger();
     Logger.getInstance().appendToLog("PojlibVrActivity: Created VR activity.");
   }
@@ -32,6 +37,7 @@ public class PojlibVrActivity extends PojlibRuntimeActivity {
   protected void onResume() {
     super.onResume();
     resumed = true;
+    applyVrWindowMode();
     Logger.getInstance().appendToLog("PojlibVrActivity: Resumed.");
     maybeStartLaunch();
   }
@@ -76,6 +82,9 @@ public class PojlibVrActivity extends PojlibRuntimeActivity {
   public void onWindowFocusChanged(boolean hasFocus) {
     super.onWindowFocusChanged(hasFocus);
     hasWindowFocus = hasFocus;
+    if (hasFocus) {
+      applyVrWindowMode();
+    }
     Logger.getInstance().appendToLog(
       "PojlibVrActivity: Window focus changed. hasFocus=" + hasFocus +
         ", launchStarted=" + launchStarted +
@@ -111,6 +120,30 @@ public class PojlibVrActivity extends PojlibRuntimeActivity {
     launchStarted = true;
     Logger.getInstance().appendToLog("PojlibVrActivity: Window focused, starting launch shortly.");
     getWindow().getDecorView().postDelayed(this::startLaunchFromIntent, 250L);
+  }
+
+  private void applyVrWindowMode() {
+    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+      getWindow().setDecorFitsSystemWindows(false);
+      WindowInsetsController controller = getWindow().getInsetsController();
+      if (controller != null) {
+        controller.hide(WindowInsets.Type.statusBars() | WindowInsets.Type.navigationBars());
+        controller.setSystemBarsBehavior(
+          WindowInsetsController.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE
+        );
+      }
+      return;
+    }
+
+    View decorView = getWindow().getDecorView();
+    decorView.setSystemUiVisibility(
+      View.SYSTEM_UI_FLAG_LAYOUT_STABLE
+        | View.SYSTEM_UI_FLAG_LAYOUT_HIDE_NAVIGATION
+        | View.SYSTEM_UI_FLAG_LAYOUT_FULLSCREEN
+        | View.SYSTEM_UI_FLAG_HIDE_NAVIGATION
+        | View.SYSTEM_UI_FLAG_FULLSCREEN
+        | View.SYSTEM_UI_FLAG_IMMERSIVE_STICKY
+    );
   }
 
   private void startLaunchFromIntent() {
