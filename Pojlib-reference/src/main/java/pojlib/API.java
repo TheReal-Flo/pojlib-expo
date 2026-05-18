@@ -33,7 +33,7 @@ public class API {
 
     public static String msaMessage = "";
     public static String model = "Quest";
-    public static String renderer = "LightThinWrapper";
+    public static String renderer = "MobileGLUES";
     private static boolean hasQueried = false;
     private static JsonObject initialResponse;
     public static boolean ignoreInstanceName;

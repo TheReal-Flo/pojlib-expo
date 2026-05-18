@@ -49,12 +49,12 @@ public class JREUtils {
     private static String getSelectedRenderer() {
         String renderer = API.renderer;
         if (renderer == null) {
-            return "LightThinWrapper";
+            return "MobileGLUES";
         }
 
         String normalized = renderer.trim();
         if (normalized.isEmpty()) {
-            return "LightThinWrapper";
+            return "MobileGLUES";
         }
 
         if (normalized.equalsIgnoreCase("ltw") || normalized.equalsIgnoreCase("lightthinwrapper")) {
