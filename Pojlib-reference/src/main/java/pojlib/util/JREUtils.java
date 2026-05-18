@@ -282,7 +282,6 @@ public class JREUtils {
         envMap.put("JNA_TMPDIR", jnaTempDir.getAbsolutePath());
         envMap.put("VR_MODEL", API.model);
         envMap.put("POJLIB_RENDERER", renderer);
-        envMap.put("POJAV_RENDERER", renderer);
         if (!isLightThinWrapperRenderer()) {
             envMap.put("MG_DIR_PATH", mgDir.getAbsolutePath());
         }
@@ -303,8 +302,8 @@ public class JREUtils {
 
                 String key = line.substring(0, index);
                 String value = line.substring(index + 1);
-                if ("POJAV_LAUNCHER".equals(key)) {
-                    Logger.getInstance().appendToLog("Ignoring custom env override for POJAV_LAUNCHER.");
+                if ("POJAV_LAUNCHER".equals(key) || "POJAV_RENDERER".equals(key)) {
+                    Logger.getInstance().appendToLog("Ignoring custom env override for " + key + ".");
                     continue;
                 }
 
@@ -320,6 +319,14 @@ public class JREUtils {
         }
         clearEnvironmentVariable("POJAV_LAUNCHER");
         clearJavaEnvironmentVariable("POJAV_LAUNCHER");
+        String inheritedPojavRenderer = Os.getenv("POJAV_RENDERER");
+        if (inheritedPojavRenderer != null) {
+            Logger.getInstance().appendToLog(
+                    "JREUtils: Clearing inherited POJAV_RENDERER=" + inheritedPojavRenderer + " to avoid Sodium launcher detection."
+            );
+        }
+        clearEnvironmentVariable("POJAV_RENDERER");
+        clearJavaEnvironmentVariable("POJAV_RENDERER");
         envMap.put("LIBGL_ES", "2");
         Logger.getInstance().appendToLog(
                 "JREUtils: Selected renderer=" + renderer +

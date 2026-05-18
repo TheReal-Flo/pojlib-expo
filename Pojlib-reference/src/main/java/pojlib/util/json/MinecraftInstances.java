@@ -106,37 +106,6 @@ public class MinecraftInstances {
             return GsonUtils.jsonFileToObject(jsonPath, ModsJson.class);
         }
 
-        private ModsJson applyLocalModOverrides(ModsJson mods) {
-            if (mods == null || mods.versions == null) {
-                return mods;
-            }
-
-            for (ModsJson.Version version : mods.versions) {
-                if (version == null || version.defaultMods == null || !versionName.equals(version.name)) {
-                    continue;
-                }
-
-                ArrayList<ProjectInfo> filteredDefaultMods = new ArrayList<>();
-                boolean removedSodium = false;
-                for (ProjectInfo mod : version.defaultMods) {
-                    if (mod != null && "Sodium".equalsIgnoreCase(mod.slug)) {
-                        removedSodium = true;
-                        continue;
-                    }
-                    filteredDefaultMods.add(mod);
-                }
-
-                if (removedSodium) {
-                    Logger.getInstance().appendToLog(
-                            "Temporarily disabling Sodium for instance '" + instanceName + "' while investigating Android launcher compatibility."
-                    );
-                    version.defaultMods = filteredDefaultMods.toArray(new ProjectInfo[0]);
-                }
-            }
-
-            return mods;
-        }
-
         private ModsJson downloadCurrentModsJson(String userHome) throws Exception {
             File mods = new File(userHome + "/new_mods.json");
             if(API.developerMods) {
@@ -145,7 +114,7 @@ public class MinecraftInstances {
                 DownloadUtils.downloadFile(InstanceHandler.MODS, mods);
             }
 
-            return applyLocalModOverrides(parseModsJson(mods.getAbsolutePath()));
+            return parseModsJson(mods.getAbsolutePath());
         }
 
         private void removeModByType(List<ProjectInfo> oldMods, List<ProjectInfo> newMods) {
