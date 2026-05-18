@@ -187,7 +187,7 @@ public class InstanceHandler {
                 CompletableFuture<Void> installFuture = CompletableFuture.allOf(clientClasspath, minecraftClasspath, modLoaderClasspath, assetsFuture);
                 installFuture.get();
 
-                instance.classpath = clientClasspath.get() + File.pathSeparator + minecraftClasspath.get() + File.pathSeparator + modLoaderClasspath.get() + File.pathSeparator + lwjgl;
+                instance.classpath = lwjgl + File.pathSeparator + clientClasspath.get() + File.pathSeparator + minecraftClasspath.get() + File.pathSeparator + modLoaderClasspath.get();
 
                 instance.assetsDir = assetsFuture.get();
                 Installer.moveLocalAssets(activity, instance);

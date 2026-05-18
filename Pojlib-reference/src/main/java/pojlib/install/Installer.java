@@ -147,8 +147,6 @@ public class Installer {
                 }
             }
 
-            // Add our GLFW
-            classpath.add(Constants.USER_HOME + "/lwjgl3/lwjgl-glfw-classes.jar");
             // DNS SRV Resolver fix
             classpath.add(Constants.USER_HOME + "/hacks/ResConfHack.jar");
 
