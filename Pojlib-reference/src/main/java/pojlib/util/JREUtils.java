@@ -19,6 +19,7 @@ import java.io.File;
 import java.io.FileReader;
 import java.io.FileWriter;
 import java.io.IOException;
+import java.lang.reflect.InvocationTargetException;
 import java.net.InetAddress;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -65,6 +66,17 @@ public class JREUtils {
 
     private static boolean isLightThinWrapperRenderer() {
         return "LightThinWrapper".equals(getSelectedRenderer());
+    }
+
+    private static void clearEnvironmentVariable(String key) {
+        try {
+            Os.class.getMethod("unsetenv", String.class).invoke(null, key);
+            Logger.getInstance().appendToLog("Removed inherited env: " + key);
+        } catch (NoSuchMethodException | IllegalAccessException | InvocationTargetException e) {
+            Logger.getInstance().appendToLog(
+                    "WARN: Failed to unset env '" + key + "': " + e.getClass().getSimpleName() + ": " + e.getMessage()
+            );
+        }
     }
 
     public static String findInLdLibPath(String libName) {
@@ -217,10 +229,28 @@ public class JREUtils {
             while ((line = reader.readLine()) != null) {
                 // Not use split() as only split first one
                 int index = line.indexOf("=");
-                envMap.put(line.substring(0, index), line.substring(index + 1));
+                if (index <= 0) {
+                    continue;
+                }
+
+                String key = line.substring(0, index);
+                String value = line.substring(index + 1);
+                if ("POJAV_LAUNCHER".equals(key)) {
+                    Logger.getInstance().appendToLog("Ignoring custom env override for POJAV_LAUNCHER.");
+                    continue;
+                }
+
+                envMap.put(key, value);
             }
             reader.close();
         }
+        String inheritedPojavLauncher = Os.getenv("POJAV_LAUNCHER");
+        if (inheritedPojavLauncher != null) {
+            Logger.getInstance().appendToLog(
+                    "JREUtils: Clearing inherited POJAV_LAUNCHER=" + inheritedPojavLauncher + " to avoid Sodium launcher detection."
+            );
+        }
+        clearEnvironmentVariable("POJAV_LAUNCHER");
         envMap.put("LIBGL_ES", "2");
         Logger.getInstance().appendToLog(
                 "JREUtils: Selected renderer=" + renderer +
