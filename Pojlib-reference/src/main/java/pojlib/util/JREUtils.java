@@ -19,10 +19,12 @@ import java.io.File;
 import java.io.FileReader;
 import java.io.FileWriter;
 import java.io.IOException;
+import java.lang.reflect.Field;
 import java.lang.reflect.InvocationTargetException;
 import java.net.InetAddress;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ExecutionException;
@@ -77,6 +79,72 @@ public class JREUtils {
                     "WARN: Failed to unset env '" + key + "': " + e.getClass().getSimpleName() + ": " + e.getMessage()
             );
         }
+    }
+
+    @SuppressWarnings("unchecked")
+    private static void clearJavaEnvironmentVariable(String key) {
+        boolean removed = false;
+
+        try {
+            Class<?> processEnvironment = Class.forName("java.lang.ProcessEnvironment");
+
+            try {
+                Field theEnvironment = processEnvironment.getDeclaredField("theEnvironment");
+                theEnvironment.setAccessible(true);
+                Object map = theEnvironment.get(null);
+                if (map instanceof Map) {
+                    removed |= ((Map<String, String>) map).remove(key) != null;
+                }
+            } catch (NoSuchFieldException ignored) {
+            }
+
+            try {
+                Field theUnmodifiableEnvironment = processEnvironment.getDeclaredField("theUnmodifiableEnvironment");
+                theUnmodifiableEnvironment.setAccessible(true);
+                Object map = theUnmodifiableEnvironment.get(null);
+                if (map instanceof Map) {
+                    removed |= removeFromWrappedEnvironmentMap((Map<String, String>) map, key);
+                }
+            } catch (NoSuchFieldException ignored) {
+            }
+        } catch (ClassNotFoundException ignored) {
+        } catch (Throwable t) {
+            Logger.getInstance().appendToLog(
+                    "WARN: Failed to access ProcessEnvironment for '" + key + "': " + t.getClass().getSimpleName() + ": " + t.getMessage()
+            );
+        }
+
+        try {
+            removed |= removeFromWrappedEnvironmentMap(System.getenv(), key);
+        } catch (Throwable t) {
+            Logger.getInstance().appendToLog(
+                    "WARN: Failed to update System.getenv() cache for '" + key + "': " + t.getClass().getSimpleName() + ": " + t.getMessage()
+            );
+        }
+
+        if (removed) {
+            Logger.getInstance().appendToLog("Removed cached Java env: " + key);
+        }
+    }
+
+    @SuppressWarnings("unchecked")
+    private static boolean removeFromWrappedEnvironmentMap(Map<String, String> env, String key) throws NoSuchFieldException, IllegalAccessException {
+        if (env == null) {
+            return false;
+        }
+
+        Class<?> envClass = env.getClass();
+        if (envClass == Collections.unmodifiableMap(new ArrayMap<String, String>()).getClass()) {
+            Field wrappedMap = envClass.getDeclaredField("m");
+            wrappedMap.setAccessible(true);
+            Object delegate = wrappedMap.get(env);
+            if (delegate instanceof Map) {
+                return ((Map<String, String>) delegate).remove(key) != null;
+            }
+            return false;
+        }
+
+        return env.remove(key) != null;
     }
 
     public static String findInLdLibPath(String libName) {
@@ -251,6 +319,7 @@ public class JREUtils {
             );
         }
         clearEnvironmentVariable("POJAV_LAUNCHER");
+        clearJavaEnvironmentVariable("POJAV_LAUNCHER");
         envMap.put("LIBGL_ES", "2");
         Logger.getInstance().appendToLog(
                 "JREUtils: Selected renderer=" + renderer +
