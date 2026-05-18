@@ -81,6 +81,14 @@ typedef jint JLI_Launch_func(int argc, char ** argv, /* main argc, argc */
 );
 
 static jint launchJVM(int margc, char** margv) {
+   char* pojavLauncher = getenv("POJAV_LAUNCHER");
+   if (pojavLauncher != NULL) {
+       LOGD("Clearing POJAV_LAUNCHER before JLI_Launch (was: %s)", pojavLauncher);
+       unsetenv("POJAV_LAUNCHER");
+       pojavLauncher = getenv("POJAV_LAUNCHER");
+       LOGD("POJAV_LAUNCHER after unsetenv: %s", pojavLauncher == NULL ? "<null>" : pojavLauncher);
+   }
+
    void* libjli = dlopen("libjli.so", RTLD_LAZY | RTLD_GLOBAL);
 
    // Boardwalk: silence
