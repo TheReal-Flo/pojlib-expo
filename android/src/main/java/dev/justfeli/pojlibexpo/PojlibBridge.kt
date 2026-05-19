@@ -3,6 +3,7 @@ package dev.justfeli.pojlibexpo
 import android.app.Activity
 import android.app.ActivityOptions
 import android.content.Context
+import android.content.ContextWrapper
 import android.content.Intent
 import android.hardware.display.DisplayManager
 import org.lwjgl.glfw.CallbackBridge
@@ -292,7 +293,12 @@ object PojlibBridge {
     val intent = Intent(activity, PojlibVrActivity::class.java).apply {
       putExtra(PojlibVrActivity.EXTRA_INSTANCE_NAME, instanceName)
       putExtra(PojlibVrActivity.EXTRA_ACCOUNT_UUID, accountUuid)
-      addFlags(Intent.FLAG_ACTIVITY_SINGLE_TOP)
+      addFlags(
+        Intent.FLAG_ACTIVITY_NEW_TASK or
+          Intent.FLAG_ACTIVITY_CLEAR_TASK or
+          Intent.FLAG_ACTIVITY_CLEAR_TOP or
+          Intent.FLAG_ACTIVITY_SINGLE_TOP
+      )
     }
 
     val displayId = getMainDisplayId(activity)
@@ -301,7 +307,12 @@ object PojlibBridge {
       options.launchDisplayId = displayId
     }
 
-    activity.startActivity(intent, options.toBundle())
+    activity.finish()
+    if (activity is ContextWrapper) {
+      activity.baseContext.startActivity(intent, options.toBundle())
+    } else {
+      activity.startActivity(intent, options.toBundle())
+    }
   }
 
   private fun getMainDisplayId(context: Context): Int {

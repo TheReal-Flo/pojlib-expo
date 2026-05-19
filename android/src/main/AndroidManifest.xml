@@ -36,7 +36,8 @@
       android:excludeFromRecents="true"
       android:exported="true"
       android:hardwareAccelerated="true"
-      android:launchMode="singleTask"
+      android:launchMode="singleTop"
+      android:process=":vr_process"
       android:resizeableActivity="false"
       android:screenOrientation="landscape"
       android:theme="@android:style/Theme.Black.NoTitleBar.Fullscreen">
