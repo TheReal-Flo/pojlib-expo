@@ -31,7 +31,6 @@ import java.util.concurrent.ExecutionException;
 
 import pojlib.API;
 
-import pojlib.PojlibRuntimeHost;
 import pojlib.install.Installer;
 import pojlib.install.MinecraftMeta;
 import pojlib.util.json.MinecraftInstances;
@@ -247,12 +246,7 @@ public class JREUtils {
             throw new IllegalArgumentException("JREUtils.relocateLibPath requires an Activity context.");
         }
         Activity activity = (Activity) ctx;
-
-        try {
-            sNativeLibDir = PojlibRuntimeHost.installNativeLibraries(activity).getAbsolutePath();
-        } catch (IOException e) {
-            throw new RuntimeException("Failed to stage native libraries for the JVM.", e);
-        }
+        sNativeLibDir = activity.getApplicationInfo().nativeLibraryDir;
 
         LD_LIBRARY_PATH = Constants.getInternalHomeFile("runtimes/JRE/bin").getAbsolutePath() + ":" + Constants.getInternalHomeFile("runtimes/JRE/lib").getAbsolutePath() + ":" +
                 "/system/lib64:/vendor/lib64:/vendor/lib64/hw:" +
@@ -272,8 +266,7 @@ public class JREUtils {
 
         Map<String, String> envMap = new ArrayMap<>();
         String renderer = getSelectedRenderer();
-        String packagedNativeLibDir = activity.getApplicationInfo().nativeLibraryDir;
-        String rendererNativeDir = isLightThinWrapperRenderer() ? packagedNativeLibDir : sNativeLibDir;
+        String rendererNativeDir = sNativeLibDir;
         envMap.put("POJLIB_NATIVEDIR", rendererNativeDir);
         envMap.put("JAVA_HOME", Constants.getRuntimeDir().getAbsolutePath());
         envMap.put("HOME", instance.gameDir);
@@ -449,8 +442,6 @@ public class JREUtils {
     public static List<String> getJavaArgs(Context ctx, MinecraftInstances.Instance instance) {
         File resConfFile = new File(Constants.USER_HOME + "/hacks/resolv.conf");
         File jnaTempDir = new File(ctx.getCacheDir(), "jna");
-        String packagedNativeLibDir = ctx.getApplicationInfo().nativeLibraryDir;
-        String combinedNativeLibPath = sNativeLibDir + ":" + packagedNativeLibDir;
         if (!jnaTempDir.exists()) {
             jnaTempDir.mkdirs();
         }
@@ -475,7 +466,7 @@ public class JREUtils {
                 "-Djna.boot.library.path=" + sNativeLibDir,
                 "-Djna.tmpdir=" + jnaTempDir.getAbsolutePath(),
                 "-Djna.nosys=true",
-                "-Djava.library.path=" + combinedNativeLibPath,
+                "-Djava.library.path=" + sNativeLibDir,
                 "-Dglfwstub.windowWidth=" + 1280,
                 "-Dglfwstub.windowHeight=" + 720,
                 "-Dglfwstub.initEgl=false",
