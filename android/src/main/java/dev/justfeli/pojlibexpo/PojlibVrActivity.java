@@ -18,28 +18,34 @@ import pojlib.util.json.MinecraftInstances;
 public class PojlibVrActivity extends PojlibRuntimeActivity {
   public static final String EXTRA_INSTANCE_NAME = "dev.justfeli.pojlibexpo.INSTANCE_NAME";
   public static final String EXTRA_ACCOUNT_UUID = "dev.justfeli.pojlibexpo.ACCOUNT_UUID";
+  private static volatile boolean vrProcessActive = false;
 
   private volatile boolean launchStarted = false;
-  private volatile boolean resumed = false;
-  private volatile boolean hasWindowFocus = false;
+  private boolean terminateProcessOnDestroy = true;
   private Thread.UncaughtExceptionHandler previousUncaughtExceptionHandler;
 
   @Override
   protected void onCreate(Bundle savedInstanceState) {
     super.onCreate(savedInstanceState);
+    if (vrProcessActive) {
+      terminateProcessOnDestroy = false;
+      Logger.getInstance().appendToLog("PojlibVrActivity: Duplicate VR activity detected, finishing the new instance.");
+      finish();
+      return;
+    }
+    vrProcessActive = true;
     getWindow().addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
     applyVrWindowMode();
     installCrashLogger();
     Logger.getInstance().appendToLog("PojlibVrActivity: Created VR activity.");
+    getWindow().getDecorView().post(this::startLaunchFromIntent);
   }
 
   @Override
   protected void onResume() {
     super.onResume();
-    resumed = true;
     applyVrWindowMode();
     Logger.getInstance().appendToLog("PojlibVrActivity: Resumed.");
-    maybeStartLaunch();
   }
 
   @Override
@@ -50,7 +56,6 @@ public class PojlibVrActivity extends PojlibRuntimeActivity {
 
   @Override
   protected void onPause() {
-    resumed = false;
     Logger.getInstance().appendToLog(
       "PojlibVrActivity: Paused. finishing=" + isFinishing() +
         ", changingConfigurations=" + isChangingConfigurations()
@@ -69,6 +74,7 @@ public class PojlibVrActivity extends PojlibRuntimeActivity {
 
   @Override
   protected void onDestroy() {
+    vrProcessActive = false;
     if (launchStarted && !API.gameReady && isFinishing()) {
       Logger.getInstance().appendToLog("PojlibVrActivity: Finishing before game became ready, archiving current log.");
       Logger.getInstance().archiveCurrentLogToLastSession();
@@ -76,23 +82,22 @@ public class PojlibVrActivity extends PojlibRuntimeActivity {
     restoreCrashLogger();
     Logger.getInstance().appendToLog("PojlibVrActivity: Destroyed.");
     super.onDestroy();
+    if (terminateProcessOnDestroy && isFinishing() && !isChangingConfigurations()) {
+      android.os.Process.killProcess(android.os.Process.myPid());
+      System.exit(0);
+    }
   }
 
   @Override
   public void onWindowFocusChanged(boolean hasFocus) {
     super.onWindowFocusChanged(hasFocus);
-    hasWindowFocus = hasFocus;
     if (hasFocus) {
       applyVrWindowMode();
     }
     Logger.getInstance().appendToLog(
       "PojlibVrActivity: Window focus changed. hasFocus=" + hasFocus +
-        ", launchStarted=" + launchStarted +
-        ", resumed=" + resumed
+        ", launchStarted=" + launchStarted
     );
-    if (hasFocus) {
-      maybeStartLaunch();
-    }
   }
 
   @Override
@@ -110,16 +115,6 @@ public class PojlibVrActivity extends PojlibRuntimeActivity {
     );
     Logger.getInstance().appendToLog(Log.getStackTraceString(new Throwable("PojlibVrActivity.finish trace")));
     super.finish();
-  }
-
-  private void maybeStartLaunch() {
-    if (launchStarted || !resumed || !hasWindowFocus) {
-      return;
-    }
-
-    launchStarted = true;
-    Logger.getInstance().appendToLog("PojlibVrActivity: Window focused, starting launch shortly.");
-    getWindow().getDecorView().postDelayed(this::startLaunchFromIntent, 250L);
   }
 
   private void applyVrWindowMode() {
@@ -147,6 +142,10 @@ public class PojlibVrActivity extends PojlibRuntimeActivity {
   }
 
   private void startLaunchFromIntent() {
+    if (launchStarted) {
+      return;
+    }
+    launchStarted = true;
     final String instanceName = getIntent().getStringExtra(EXTRA_INSTANCE_NAME);
     final String accountUuid = getIntent().getStringExtra(EXTRA_ACCOUNT_UUID);
 
