@@ -217,6 +217,25 @@ class PojlibExpoModule : Module() {
       )
     }
 
+    AsyncFunction("addModrinthVersionProject") {
+      instanceName: String,
+      versionId: String,
+      type: String? ->
+
+      val activity = requireNotNull(appContext.currentActivity) {
+        "An Android activity is required to add a Modrinth project version."
+      }
+
+      PojlibBridge.initialize(activity)
+      attachLogListener()
+      PojlibBridge.addModrinthVersionProject(
+        activity,
+        instanceName,
+        versionId,
+        type
+      )
+    }
+
     AsyncFunction("hasExtraProject") { instanceName: String, name: String ->
       val activity = requireNotNull(appContext.currentActivity) {
         "An Android activity is required to check a Pojlib project."

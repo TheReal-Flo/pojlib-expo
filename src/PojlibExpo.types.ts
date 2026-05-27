@@ -107,6 +107,12 @@ export type AddPojlibProjectOptions = {
   type: string;
 };
 
+export type AddPojlibModrinthVersionOptions = {
+  instanceName: string;
+  versionId: string;
+  type?: string | null;
+};
+
 export type PojlibExpoModuleEvents = {
   onLog: (params: PojlibLogEventPayload) => void;
 };

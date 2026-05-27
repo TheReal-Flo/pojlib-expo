@@ -191,6 +191,19 @@ object PojlibBridge {
     return instanceToMap(instance)
   }
 
+  fun addModrinthVersionProject(
+    activity: Activity,
+    instanceName: String,
+    versionId: String,
+    type: String?
+  ): Map<String, Any?> {
+    initialize(activity)
+    val instances = loadInstancesModel()
+    val instance = requireInstance(loadInstanceModel(instances, instanceName), instanceName)
+    API.addExtraProjectFromModrinthVersion(instances, instance, versionId, type ?: "mod")
+    return instanceToMap(instance)
+  }
+
   fun hasExtraProject(activity: Activity, instanceName: String, name: String): Boolean {
     initialize(activity)
     val instances = loadInstancesModel()

@@ -67,6 +67,10 @@ class PojlibExpoModule extends NativeModule<PojlibExpoModuleEvents> {
     throw new Error('Pojlib is only available on Android.');
   }
 
+  async addModrinthVersionProject() {
+    throw new Error('Pojlib is only available on Android.');
+  }
+
   async hasExtraProject() {
     return false;
   }

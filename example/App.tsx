@@ -1,5 +1,9 @@
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import { createDrawerNavigator } from '@react-navigation/drawer';
+import { DefaultTheme, NavigationContainer } from '@react-navigation/native';
+import { Picker } from '@react-native-picker/picker';
 import { useEvent } from 'expo';
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import PojlibExpo, {
   getPojlibGitBranch,
   getPojlibStatus,
@@ -18,12 +22,97 @@ import PojlibExpo, {
   type PojlibInstance,
   type PojlibStatus,
 } from 'pojlib-expo';
-import { Pressable, SafeAreaView, ScrollView, Text, View } from 'react-native';
+import {
+  Modal,
+  Platform,
+  Pressable,
+  SafeAreaView,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TextInput,
+  View,
+} from 'react-native';
+import { GestureHandlerRootView } from 'react-native-gesture-handler';
+import { SafeAreaProvider } from 'react-native-safe-area-context';
+import { WebView } from 'react-native-webview';
 
+const Drawer = createDrawerNavigator();
 const POLL_INTERVAL_MS = 2000;
 const MAX_LOG_LINES = 18;
+const MODRINTH_URL = 'https://modrinth.com/';
+const STORAGE_LAST_ACCOUNT_UUID = 'pojlib-expo-example:last-account-uuid';
+const STORAGE_LAST_INSTANCE_NAME = 'pojlib-expo-example:last-instance-name';
 
 export default function App() {
+  const navigationTheme = useMemo(
+    () => ({
+      ...DefaultTheme,
+      colors: {
+        ...DefaultTheme.colors,
+        background: '#d7e0d1',
+        card: '#f8f2e8',
+        border: '#c6bba8',
+        primary: '#304c3d',
+        text: '#28322a',
+      },
+    }),
+    []
+  );
+
+  return (
+    <GestureHandlerRootView style={styles.root}>
+      <SafeAreaProvider>
+        <NavigationContainer theme={navigationTheme}>
+          <Drawer.Navigator
+            initialRouteName="Home"
+            screenOptions={{
+              headerStyle: {
+                backgroundColor: '#f8f2e8',
+              },
+              headerTintColor: '#28322a',
+              headerTitleStyle: {
+                fontWeight: '700',
+              },
+              sceneStyle: {
+                backgroundColor: '#d7e0d1',
+              },
+              drawerStyle: {
+                backgroundColor: '#f1eadc',
+                width: 280,
+              },
+              drawerActiveTintColor: '#f7f3e9',
+              drawerInactiveTintColor: '#304c3d',
+              drawerActiveBackgroundColor: '#304c3d',
+              drawerLabelStyle: {
+                fontWeight: '700',
+              },
+            }}
+          >
+            <Drawer.Screen
+              name="Home"
+              component={HomeScreen}
+              options={{
+                title: 'Pojlib Home',
+                drawerLabel: 'Home',
+              }}
+            />
+            <Drawer.Screen
+              name="Modrinth"
+              component={ModrinthScreen}
+              options={{
+                title: 'Modrinth',
+                drawerLabel: 'Modrinth',
+              }}
+            />
+          </Drawer.Navigator>
+        </NavigationContainer>
+      </SafeAreaProvider>
+    </GestureHandlerRootView>
+  );
+}
+
+function HomeScreen() {
   const bridgeAvailable = isPojlibBridgeAvailable();
   const gitBranch = getPojlibGitBranch();
   const logEvent = useEvent(PojlibExpo, 'onLog');
@@ -41,14 +130,29 @@ export default function App() {
   const [busyLabel, setBusyLabel] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [autoUploadedPreviousLog, setAutoUploadedPreviousLog] = useState<string | null>(null);
+  const [lastAccountUuid, setLastAccountUuid] = useState<string | null>(null);
+  const [lastInstanceName, setLastInstanceName] = useState<string | null>(null);
+  const [selectedInstanceName, setSelectedInstanceName] = useState<string>('');
+  const [preferencesLoaded, setPreferencesLoaded] = useState(false);
+  const [createModalVisible, setCreateModalVisible] = useState(false);
+  const [newInstanceName, setNewInstanceName] = useState('');
+  const [newInstanceVersion, setNewInstanceVersion] = useState('');
 
+  const autoLoginAttemptedFor = useRef<string | null>(null);
   const hasInstallingInstance = instances.some((instance) => !instance.classpath);
+  const selectedInstance =
+    instances.find((instance) => instance.instanceName === selectedInstanceName) ?? null;
+  const currentAccountUuid = status?.currentAccount?.uuid ?? null;
+  const canPlay = Boolean(currentAccountUuid && selectedInstanceName && !busyLabel);
 
   useEffect(() => {
-    void runAction('Initializing', async () => {
-      await initializePojlib();
-      await refreshAll();
-    });
+    void (async () => {
+      await loadStoredPreferences();
+      await runAction('Initializing', async () => {
+        await initializePojlib();
+        await refreshAll();
+      });
+    })();
   }, []);
 
   useEffect(() => {
@@ -111,6 +215,90 @@ export default function App() {
     );
   }, [autoUploadedPreviousLog, previousLog, previousMclogsUrl]);
 
+  useEffect(() => {
+    if (!preferencesLoaded || currentAccountUuid || !lastAccountUuid) {
+      return;
+    }
+
+    if (!accounts.some((account) => account.uuid === lastAccountUuid)) {
+      return;
+    }
+
+    if (autoLoginAttemptedFor.current === lastAccountUuid) {
+      return;
+    }
+
+    autoLoginAttemptedFor.current = lastAccountUuid;
+    void runAction('Restoring account', async () => {
+      await loginToPojlib(lastAccountUuid);
+      await refreshAll();
+    });
+  }, [accounts, currentAccountUuid, lastAccountUuid, preferencesLoaded]);
+
+  useEffect(() => {
+    if (!currentAccountUuid) {
+      return;
+    }
+
+    autoLoginAttemptedFor.current = currentAccountUuid;
+    setLastAccountUuid(currentAccountUuid);
+    void AsyncStorage.setItem(STORAGE_LAST_ACCOUNT_UUID, currentAccountUuid);
+  }, [currentAccountUuid]);
+
+  useEffect(() => {
+    if (supportedVersions.length > 0 && !newInstanceVersion) {
+      setNewInstanceVersion(supportedVersions[0]);
+    }
+  }, [newInstanceVersion, supportedVersions]);
+
+  useEffect(() => {
+    if (instances.length === 0) {
+      if (selectedInstanceName) {
+        setSelectedInstanceName('');
+      }
+      return;
+    }
+
+    const exists = instances.some((instance) => instance.instanceName === selectedInstanceName);
+    if (exists) {
+      return;
+    }
+
+    const nextSelection =
+      lastInstanceName && instances.some((instance) => instance.instanceName === lastInstanceName)
+        ? lastInstanceName
+        : status?.currentInstance?.instanceName &&
+            instances.some((instance) => instance.instanceName === status.currentInstance?.instanceName)
+          ? status.currentInstance.instanceName
+          : instances[0].instanceName;
+
+    setSelectedInstanceName(nextSelection);
+  }, [instances, lastInstanceName, selectedInstanceName, status?.currentInstance?.instanceName]);
+
+  useEffect(() => {
+    if (!selectedInstanceName) {
+      return;
+    }
+
+    setLastInstanceName(selectedInstanceName);
+    void AsyncStorage.setItem(STORAGE_LAST_INSTANCE_NAME, selectedInstanceName);
+  }, [selectedInstanceName]);
+
+  async function loadStoredPreferences() {
+    try {
+      const entries = await AsyncStorage.multiGet([
+        STORAGE_LAST_ACCOUNT_UUID,
+        STORAGE_LAST_INSTANCE_NAME,
+      ]);
+      const accountUuid = entries.find(([key]) => key === STORAGE_LAST_ACCOUNT_UUID)?.[1] ?? null;
+      const instanceName = entries.find(([key]) => key === STORAGE_LAST_INSTANCE_NAME)?.[1] ?? null;
+      setLastAccountUuid(accountUuid);
+      setLastInstanceName(instanceName);
+    } finally {
+      setPreferencesLoaded(true);
+    }
+  }
+
   async function runAction(label: string, action: () => Promise<void>) {
     setBusyLabel(label);
     setError(null);
@@ -134,14 +322,15 @@ export default function App() {
   }
 
   async function refreshAll() {
-    const [nextStatus, nextAccounts, nextInstances, nextVersions, nextLog, nextPreviousLog] = await Promise.all([
-      getPojlibStatus(),
-      listPojlibAccounts(),
-      loadPojlibInstances(),
-      getPojlibSupportedVersions(),
-      readPojlibLatestLog(),
-      readPojlibPreviousLog(),
-    ]);
+    const [nextStatus, nextAccounts, nextInstances, nextVersions, nextLog, nextPreviousLog] =
+      await Promise.all([
+        getPojlibStatus(),
+        listPojlibAccounts(),
+        loadPojlibInstances(),
+        getPojlibSupportedVersions(),
+        readPojlibLatestLog(),
+        readPojlibPreviousLog(),
+      ]);
 
     setStatus(nextStatus);
     setAccounts(nextAccounts);
@@ -164,14 +353,44 @@ export default function App() {
     }
   }
 
-  async function startLogin() {
-    await loginToPojlib();
+  async function startLogin(accountUuid?: string | null) {
+    await loginToPojlib(accountUuid ?? null);
     await refreshAll();
   }
 
-  async function installDefaultVersion(minecraftVersion: string) {
-    await installDefaultPojlibInstance({ minecraftVersion });
+  async function installPresetInstance() {
+    const trimmedName = newInstanceName.trim();
+    if (!trimmedName) {
+      throw new Error('Enter an instance name.');
+    }
+
+    if (!newInstanceVersion) {
+      throw new Error('Select a preset version.');
+    }
+
+    await installDefaultPojlibInstance({
+      minecraftVersion: newInstanceVersion,
+      instanceName: trimmedName,
+    });
     await refreshAll();
+    setSelectedInstanceName(trimmedName);
+    setCreateModalVisible(false);
+    setNewInstanceName('');
+  }
+
+  async function playSelectedInstance() {
+    const selectedAccount = status?.currentAccount;
+    if (!selectedAccount) {
+      throw new Error('Login is required before launching an instance.');
+    }
+
+    if (!selectedInstance) {
+      throw new Error('Select an installed instance first.');
+    }
+
+    await prelaunchPojlibInstance(selectedInstance.instanceName);
+    await refreshAll();
+    await launchPojlibInstance(selectedInstance.instanceName, selectedAccount.uuid);
   }
 
   async function uploadLogToMclogs(logContent: string, source: string) {
@@ -186,7 +405,11 @@ export default function App() {
       }),
     });
 
-    const payload = (await response.json()) as { success?: boolean; url?: string; error?: string };
+    const payload = (await response.json()) as {
+      success?: boolean;
+      url?: string;
+      error?: string;
+    };
     if (!response.ok || !payload.success || !payload.url) {
       throw new Error(payload.error ?? `mclo.gs upload failed with status ${response.status}.`);
     }
@@ -203,22 +426,69 @@ export default function App() {
           <Text style={styles.label}>Pojlib branch: {gitBranch ?? 'Unavailable'}</Text>
           <Text style={styles.label}>Busy: {busyLabel ?? 'Idle'}</Text>
           <Text style={styles.label}>User home: {status?.userHome ?? 'Not initialized yet'}</Text>
-          <Text style={styles.label}>Current profile: {status?.profileName ?? 'No account loaded'}</Text>
-          <Text style={styles.label}>Microsoft login message: {status?.msaMessage || 'None'}</Text>
+          <Text style={styles.label}>
+            Current profile: {status?.profileName ?? 'No account loaded'}
+          </Text>
+          <Text style={styles.label}>
+            Selected instance: {selectedInstanceName || 'No installed instance selected'}
+          </Text>
+          <Text style={styles.label}>
+            Microsoft login message: {status?.msaMessage || 'None'}
+          </Text>
           {error ? <Text style={styles.error}>Error: {error}</Text> : null}
         </View>
 
         <View style={styles.panel}>
-          <Text style={styles.sectionTitle}>Actions</Text>
-          <View style={styles.actions}>
+          <Text style={styles.sectionTitle}>Quick Play</Text>
+          <Text style={styles.label}>
+            {currentAccountUuid
+              ? `Logged in as ${status?.currentAccount?.username ?? 'Unknown'}`
+              : lastAccountUuid
+                ? 'Restores your last used account automatically when available.'
+                : 'Login once to unlock Play and remember the last used account.'}
+          </Text>
+          <View style={styles.quickPlayRow}>
+            <View style={styles.pickerShell}>
+              <Picker
+                selectedValue={selectedInstanceName}
+                onValueChange={(value) => setSelectedInstanceName(String(value))}
+                enabled={instances.length > 0}
+                style={styles.picker}
+                dropdownIconColor="#304c3d"
+              >
+                {instances.length === 0 ? (
+                  <Picker.Item label="No installed instances" value="" />
+                ) : (
+                  instances.map((instance) => (
+                    <Picker.Item
+                      key={instance.instanceName}
+                      label={instance.instanceName}
+                      value={instance.instanceName}
+                    />
+                  ))
+                )}
+              </Picker>
+            </View>
             <ActionButton
-              label="Initialize"
+              label="Play"
+              disabled={!canPlay}
               onPress={() =>
-                runAction('Initializing', async () => {
-                  await initializePojlib();
-                  await refreshAll();
+                runAction(`Launching ${selectedInstanceName}`, async () => {
+                  await playSelectedInstance();
                 })
               }
+            />
+          </View>
+          {!currentAccountUuid ? (
+            <Text style={styles.helperText}>Play is only enabled while a saved account is active.</Text>
+          ) : null}
+          <View style={styles.actions}>
+            <ActionButton
+              label="Create Instance"
+              onPress={() => {
+                setNewInstanceVersion(supportedVersions[0] ?? '');
+                setCreateModalVisible(true);
+              }}
             />
             <ActionButton
               label="Refresh"
@@ -229,49 +499,10 @@ export default function App() {
               }
             />
             <ActionButton
-              label="Start Login"
+              label={currentAccountUuid ? 'Reopen Login' : 'Start Login'}
               onPress={() =>
                 runAction('Starting login', async () => {
                   await startLogin();
-                })
-              }
-            />
-            <ActionButton
-              label="Reload Accounts"
-              onPress={() =>
-                runAction('Loading accounts', async () => {
-                  setAccounts(await listPojlibAccounts());
-                  setStatus(await getPojlibStatus());
-                })
-              }
-            />
-            <ActionButton
-              label="Reload Instances"
-              onPress={() =>
-                runAction('Loading instances', async () => {
-                  setInstances(await loadPojlibInstances());
-                })
-              }
-            />
-            <ActionButton
-              label="Reload Log File"
-              onPress={() =>
-                runAction('Reading log', async () => {
-                  setLatestLog(await readPojlibLatestLog());
-                  setPreviousLog(await readPojlibPreviousLog());
-                })
-              }
-            />
-            <ActionButton
-              label="Install Latest Default"
-              onPress={() =>
-                runAction('Installing default instance', async () => {
-                  const latestSupportedVersion = supportedVersions[0];
-                  if (!latestSupportedVersion) {
-                    throw new Error('No supported Pojlib versions are available yet.');
-                  }
-
-                  await installDefaultVersion(latestSupportedVersion);
                 })
               }
             />
@@ -291,8 +522,7 @@ export default function App() {
                 label={status?.currentAccount?.uuid === account.uuid ? 'Selected' : 'Use Account'}
                 onPress={() =>
                   runAction(`Selecting ${account.username}`, async () => {
-                    await loginToPojlib(account.uuid);
-                    await refreshAll();
+                    await startLogin(account.uuid);
                   })
                 }
               />
@@ -301,62 +531,25 @@ export default function App() {
         </View>
 
         <View style={styles.panel}>
-          <Text style={styles.sectionTitle}>Instances</Text>
+          <Text style={styles.sectionTitle}>Installed Instances</Text>
           {instances.length === 0 ? <Text style={styles.muted}>No instances found</Text> : null}
           {instances.map((instance) => (
             <View key={instance.instanceName} style={styles.instanceCard}>
               <Text style={styles.item}>
-                {instance.instanceName} | {instance.versionName ?? 'Unknown version'} | {instance.extProjects.length} extra projects |{' '}
+                {instance.instanceName} | {instance.versionName ?? 'Unknown version'} |{' '}
+                {instance.extProjects.length} extra projects |{' '}
                 {instance.classpath ? 'Ready' : 'Installing'}
+                {instance.instanceName === selectedInstanceName ? ' | Selected' : ''}
               </Text>
-              <View style={styles.actions}>
-                <ActionButton
-                  label="Prelaunch"
-                  onPress={() =>
-                    runAction(`Prelaunching ${instance.instanceName}`, async () => {
-                      await prelaunchPojlibInstance(instance.instanceName);
-                      await refreshAll();
-                    })
-                  }
-                />
-                <ActionButton
-                  label="Launch"
-                  onPress={() =>
-                    runAction(`Launching ${instance.instanceName}`, async () => {
-                      const selectedAccountUuid = status?.currentAccount?.uuid;
-                      if (!selectedAccountUuid) {
-                        throw new Error('Select an account before launching an instance.');
-                      }
-
-                      await launchPojlibInstance(instance.instanceName, selectedAccountUuid);
-                    })
-                  }
-                />
-              </View>
             </View>
           ))}
         </View>
 
         <View style={styles.panel}>
-          <Text style={styles.sectionTitle}>Supported Versions</Text>
+          <Text style={styles.sectionTitle}>Supported Presets</Text>
           <Text style={styles.muted}>
             {supportedVersions.length > 0 ? supportedVersions.join(', ') : 'No versions loaded'}
           </Text>
-          <View style={styles.installRows}>
-            {supportedVersions.slice(0, 6).map((version) => (
-              <View key={version} style={styles.installRow}>
-                <Text style={styles.item}>{version}</Text>
-                <ActionButton
-                  label="Install Default"
-                  onPress={() =>
-                    runAction(`Installing ${version}`, async () => {
-                      await installDefaultVersion(version);
-                    })
-                  }
-                />
-              </View>
-            ))}
-          </View>
         </View>
 
         <View style={styles.panel}>
@@ -412,19 +605,129 @@ export default function App() {
           <Text style={styles.logBlock}>{previousLog ?? 'No previous session log found yet'}</Text>
         </View>
       </ScrollView>
+
+      <Modal
+        transparent
+        visible={createModalVisible}
+        animationType="fade"
+        onRequestClose={() => setCreateModalVisible(false)}
+      >
+        <View style={styles.modalBackdrop}>
+          <View style={styles.modalCard}>
+            <Text style={styles.sectionTitle}>Create Instance</Text>
+            <Text style={styles.label}>Name</Text>
+            <TextInput
+              value={newInstanceName}
+              onChangeText={setNewInstanceName}
+              placeholder="QuestCraft My Pack"
+              placeholderTextColor="#7a7468"
+              style={styles.input}
+            />
+            <Text style={styles.label}>Preset</Text>
+            <View style={styles.pickerShell}>
+              <Picker
+                selectedValue={newInstanceVersion}
+                onValueChange={(value) => setNewInstanceVersion(String(value))}
+                enabled={supportedVersions.length > 0}
+                style={styles.picker}
+                dropdownIconColor="#304c3d"
+              >
+                {supportedVersions.length === 0 ? (
+                  <Picker.Item label="No supported presets available" value="" />
+                ) : (
+                  supportedVersions.map((version) => (
+                    <Picker.Item key={version} label={`QuestCraft ${version}`} value={version} />
+                  ))
+                )}
+              </Picker>
+            </View>
+            <View style={styles.actions}>
+              <ActionButton
+                label="Create"
+                disabled={!newInstanceName.trim() || !newInstanceVersion || !!busyLabel}
+                onPress={() =>
+                  runAction('Creating instance', async () => {
+                    await installPresetInstance();
+                  })
+                }
+              />
+              <ActionButton
+                label="Cancel"
+                variant="secondary"
+                onPress={() => setCreateModalVisible(false)}
+              />
+            </View>
+          </View>
+        </View>
+      </Modal>
     </SafeAreaView>
   );
 }
 
-function ActionButton(props: { label: string; onPress: () => void }) {
+function ModrinthScreen() {
+  if (Platform.OS === 'web') {
+    return (
+      <SafeAreaView style={styles.container}>
+        <View style={styles.webFallback}>
+          <Text style={styles.header}>Modrinth</Text>
+          <Text style={styles.label}>
+            The embedded WebView screen is intended for Android and iOS builds.
+          </Text>
+          <Text style={styles.label}>
+            Open {MODRINTH_URL} in a native build to browse Modrinth here.
+          </Text>
+        </View>
+      </SafeAreaView>
+    );
+  }
+
   return (
-    <Pressable onPress={props.onPress} style={styles.button}>
-      <Text style={styles.buttonText}>{props.label}</Text>
+    <View style={styles.webViewShell}>
+      <WebView
+        source={{ uri: MODRINTH_URL }}
+        style={styles.webView}
+        startInLoadingState
+        setSupportMultipleWindows={false}
+      />
+    </View>
+  );
+}
+
+function ActionButton(props: {
+  label: string;
+  onPress: () => void;
+  disabled?: boolean;
+  variant?: 'primary' | 'secondary';
+}) {
+  const variant = props.variant ?? 'primary';
+
+  return (
+    <Pressable
+      onPress={props.onPress}
+      disabled={props.disabled}
+      style={[
+        styles.button,
+        variant === 'secondary' ? styles.buttonSecondary : null,
+        props.disabled ? styles.buttonDisabled : null,
+      ]}
+    >
+      <Text
+        style={[
+          styles.buttonText,
+          variant === 'secondary' ? styles.buttonSecondaryText : null,
+          props.disabled ? styles.buttonDisabledText : null,
+        ]}
+      >
+        {props.label}
+      </Text>
     </Pressable>
   );
 }
 
-const styles = {
+const styles = StyleSheet.create({
+  root: {
+    flex: 1,
+  },
   container: {
     flex: 1,
     backgroundColor: '#d7e0d1',
@@ -443,19 +746,24 @@ const styles = {
   header: {
     fontSize: 28,
     marginBottom: 14,
-    fontWeight: '700' as const,
+    fontWeight: '700',
     color: '#28322a',
   },
   sectionTitle: {
     fontSize: 20,
     marginBottom: 10,
-    fontWeight: '600' as const,
+    fontWeight: '600',
     color: '#3f3626',
   },
   label: {
     fontSize: 15,
     marginBottom: 8,
     color: '#28322a',
+  },
+  helperText: {
+    fontSize: 13,
+    marginTop: 10,
+    color: '#6b655b',
   },
   muted: {
     fontSize: 14,
@@ -465,23 +773,57 @@ const styles = {
     marginTop: 8,
     color: '#8d1f1f',
     fontSize: 15,
-    fontWeight: '600' as const,
+    fontWeight: '600',
   },
   actions: {
-    flexDirection: 'row' as const,
-    flexWrap: 'wrap' as const,
+    flexDirection: 'row',
+    flexWrap: 'wrap',
     gap: 10,
+  },
+  quickPlayRow: {
+    flexDirection: 'row',
+    gap: 12,
+    alignItems: 'center',
+  },
+  pickerShell: {
+    flex: 1,
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: '#c6bba8',
+    backgroundColor: '#fffdf8',
+    overflow: 'hidden',
+  },
+  picker: {
+    color: '#28322a',
   },
   button: {
     backgroundColor: '#304c3d',
     borderRadius: 999,
-    paddingHorizontal: 14,
-    paddingVertical: 10,
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    minWidth: 96,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  buttonSecondary: {
+    backgroundColor: '#ebe3d2',
+    borderWidth: 1,
+    borderColor: '#c6bba8',
+  },
+  buttonDisabled: {
+    backgroundColor: '#a7b2a8',
+    borderColor: '#a7b2a8',
   },
   buttonText: {
     color: '#f7f3e9',
     fontSize: 14,
-    fontWeight: '600' as const,
+    fontWeight: '600',
+  },
+  buttonSecondaryText: {
+    color: '#304c3d',
+  },
+  buttonDisabledText: {
+    color: '#eef2ee',
   },
   item: {
     fontSize: 14,
@@ -491,14 +833,10 @@ const styles = {
   instanceCard: {
     marginBottom: 12,
   },
-  installRows: {
-    marginTop: 12,
-    gap: 10,
-  },
   installRow: {
-    flexDirection: 'row' as const,
-    alignItems: 'center' as const,
-    justifyContent: 'space-between' as const,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
     gap: 12,
   },
   logLine: {
@@ -510,4 +848,44 @@ const styles = {
     fontSize: 12,
     color: '#3d423e',
   },
-};
+  webViewShell: {
+    flex: 1,
+    backgroundColor: '#d7e0d1',
+  },
+  webView: {
+    flex: 1,
+    backgroundColor: '#ffffff',
+  },
+  webFallback: {
+    flex: 1,
+    padding: 24,
+    justifyContent: 'center',
+  },
+  modalBackdrop: {
+    flex: 1,
+    backgroundColor: 'rgba(25, 25, 25, 0.42)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: 24,
+  },
+  modalCard: {
+    width: '100%',
+    maxWidth: 540,
+    backgroundColor: '#f8f2e8',
+    borderRadius: 22,
+    padding: 20,
+    borderWidth: 1,
+    borderColor: '#c6bba8',
+    gap: 10,
+  },
+  input: {
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: '#c6bba8',
+    backgroundColor: '#fffdf8',
+    paddingHorizontal: 14,
+    paddingVertical: 12,
+    fontSize: 15,
+    color: '#28322a',
+  },
+});

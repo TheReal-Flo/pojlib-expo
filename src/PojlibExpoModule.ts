@@ -2,6 +2,7 @@ import { NativeModule, requireNativeModule } from 'expo';
 
 import type {
   AddPojlibProjectOptions,
+  AddPojlibModrinthVersionOptions,
   CreatePojlibInstanceOptions,
   CreatePojlibMrpackInstanceOptions,
   InstallDefaultPojlibInstanceOptions,
@@ -56,6 +57,11 @@ declare class PojlibExpoModule extends NativeModule<PojlibExpoModuleEvents> {
     url: string,
     type: string
   ): Promise<PojlibInstance>;
+  addModrinthVersionProject(
+    instanceName: string,
+    versionId: string,
+    type: string | null
+  ): Promise<PojlibInstance>;
   hasExtraProject(instanceName: string, name: string): Promise<boolean>;
   removeExtraProject(instanceName: string, name: string): Promise<boolean>;
   prelaunch(instanceName: string): Promise<PojlibStatus>;
@@ -67,6 +73,7 @@ declare class PojlibExpoModule extends NativeModule<PojlibExpoModuleEvents> {
 
 export type {
   AddPojlibProjectOptions,
+  AddPojlibModrinthVersionOptions,
   CreatePojlibInstanceOptions,
   CreatePojlibMrpackInstanceOptions,
   InstallDefaultPojlibInstanceOptions,

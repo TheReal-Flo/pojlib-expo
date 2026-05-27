@@ -32,6 +32,8 @@ project.xcworkspace
 .cxx
 .gradle
 .gradle-jdk17/
+.gradle-jdk17-pojlib/
+.gradle-jdk21-pojlib/
 .idea
 .project
 .settings

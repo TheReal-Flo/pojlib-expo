@@ -1,6 +1,6 @@
 {
   "name": "pojlib-expo",
-  "version": "0.1.2",
+  "version": "0.1.3",
   "description": "A bridge between Pojlib and Expo",
   "main": "build/index.js",
   "types": "build/index.d.ts",

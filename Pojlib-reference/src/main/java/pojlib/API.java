@@ -18,6 +18,7 @@ import pojlib.util.download.DownloadManager;
 import pojlib.util.json.MinecraftInstances;
 import pojlib.util.Constants;
 import pojlib.account.LoginHelper;
+import pojlib.install.ModrinthMeta;
 
 import java.io.IOException;
 import java.net.HttpURLConnection;
@@ -63,6 +64,19 @@ public class API {
      */
     public static void addExtraProject(MinecraftInstances instances, MinecraftInstances.Instance instance, String name, String fileName, String version, String url, String type) {
         InstanceHandler.addExtraProject(instances, instance, name, fileName, version, url, type);
+    }
+
+    public static void addExtraProjectFromModrinthVersion(MinecraftInstances instances, MinecraftInstances.Instance instance, String versionId, String type) throws IOException {
+        ModrinthMeta.ResolvedProject resolvedProject = ModrinthMeta.resolveVersion(versionId);
+        InstanceHandler.addExtraProject(
+                instances,
+                instance,
+                resolvedProject.slug,
+                resolvedProject.fileName,
+                resolvedProject.versionId,
+                resolvedProject.downloadUrl,
+                type
+        );
     }
 
     public static boolean isDownloadsCompleted() {

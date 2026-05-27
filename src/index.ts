@@ -4,6 +4,7 @@ export * from './PojlibExpo.types';
 
 import PojlibExpoModule, {
   AddPojlibProjectOptions,
+  AddPojlibModrinthVersionOptions,
   CreatePojlibInstanceOptions,
   CreatePojlibMrpackInstanceOptions,
   InstallDefaultPojlibInstanceOptions,
@@ -130,6 +131,14 @@ export function addPojlibExtraProject(options: AddPojlibProjectOptions) {
     options.version,
     options.url,
     options.type
+  );
+}
+
+export function addPojlibModrinthVersion(options: AddPojlibModrinthVersionOptions) {
+  return PojlibExpoModule.addModrinthVersionProject(
+    options.instanceName,
+    options.versionId,
+    options.type ?? 'mod'
   );
 }
 

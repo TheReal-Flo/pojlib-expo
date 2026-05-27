@@ -230,22 +230,56 @@ public class InstanceHandler {
     }
 
     public static void addExtraProject(MinecraftInstances instances, MinecraftInstances.Instance instance, String name, String fileName, String version, String url, String type) {
-        ProjectInfo info = new ProjectInfo();
-        info.slug = name;
-        info.fileName = fileName;
-        info.download_link = url;
-        info.version = version;
-        info.type = type;
-
         if(instance.extProjects == null) {
             instance.extProjects = new ProjectInfo[0];
         }
 
         ArrayList<ProjectInfo> mods = Lists.newArrayList(instance.extProjects);
-        mods.add(info);
+        ProjectInfo existingInfo = null;
+        for (ProjectInfo mod : mods) {
+            if (mod.slug != null && mod.slug.equalsIgnoreCase(name)) {
+                existingInfo = mod;
+                break;
+            }
+        }
+
+        if (existingInfo != null) {
+            File oldFile = resolveProjectFile(instance, existingInfo);
+            existingInfo.slug = name;
+            existingInfo.fileName = fileName;
+            existingInfo.download_link = url;
+            existingInfo.version = version;
+            existingInfo.type = type;
+
+            File newFile = resolveProjectFile(instance, existingInfo);
+            if (oldFile != null && newFile != null && !oldFile.equals(newFile) && oldFile.exists()) {
+                oldFile.delete();
+            }
+        } else {
+            ProjectInfo info = new ProjectInfo();
+            info.slug = name;
+            info.fileName = fileName;
+            info.download_link = url;
+            info.version = version;
+            info.type = type;
+            mods.add(info);
+        }
         instance.extProjects = mods.toArray(mods.toArray(new ProjectInfo[0]));
 
         GsonUtils.objectToJsonFile(Constants.USER_HOME + "/instances.json", instances);
+    }
+
+    private static File resolveProjectFile(MinecraftInstances.Instance instance, ProjectInfo info) {
+        if (instance == null || info == null || info.slug == null || info.type == null) {
+            return null;
+        }
+
+        boolean resourcePack = "resourcepack".equals(info.type);
+        boolean legacyMod = info.fileName == null;
+        String folder = resourcePack ? "/resourcepacks/" : "/mods/";
+        String fileName = legacyMod ? info.slug : info.fileName;
+        String extension = resourcePack ? ".zip" : ".jar";
+        return new File(instance.gameDir + folder + fileName + extension);
     }
 
     public static boolean hasExtraProject(MinecraftInstances.Instance instance, String name) {

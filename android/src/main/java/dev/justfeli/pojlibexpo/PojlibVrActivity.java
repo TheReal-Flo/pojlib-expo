@@ -1,5 +1,7 @@
 package dev.justfeli.pojlibexpo;
 
+import android.Manifest;
+import android.content.pm.PackageManager;
 import android.os.Bundle;
 import android.os.Build;
 import android.util.Log;
@@ -7,6 +9,7 @@ import android.view.View;
 import android.view.WindowInsets;
 import android.view.WindowInsetsController;
 import android.view.WindowManager;
+import androidx.core.content.ContextCompat;
 
 import pojlib.API;
 import pojlib.PojlibRuntimeActivity;
@@ -18,6 +21,7 @@ import pojlib.util.json.MinecraftInstances;
 public class PojlibVrActivity extends PojlibRuntimeActivity {
   public static final String EXTRA_INSTANCE_NAME = "dev.justfeli.pojlibexpo.INSTANCE_NAME";
   public static final String EXTRA_ACCOUNT_UUID = "dev.justfeli.pojlibexpo.ACCOUNT_UUID";
+  private static final int REQUEST_RECORD_AUDIO_PERMISSION = 1001;
   private static volatile boolean vrProcessActive = false;
 
   private volatile boolean launchStarted = false;
@@ -38,7 +42,7 @@ public class PojlibVrActivity extends PojlibRuntimeActivity {
     applyVrWindowMode();
     installCrashLogger();
     Logger.getInstance().appendToLog("PojlibVrActivity: Created VR activity.");
-    getWindow().getDecorView().post(this::startLaunchFromIntent);
+    getWindow().getDecorView().post(this::startLaunchWhenReady);
   }
 
   @Override
@@ -117,6 +121,23 @@ public class PojlibVrActivity extends PojlibRuntimeActivity {
     super.finish();
   }
 
+  @Override
+  public void onRequestPermissionsResult(int requestCode, String[] permissions, int[] grantResults) {
+    super.onRequestPermissionsResult(requestCode, permissions, grantResults);
+    if (requestCode != REQUEST_RECORD_AUDIO_PERMISSION) {
+      return;
+    }
+
+    if (grantResults.length > 0 && grantResults[0] == PackageManager.PERMISSION_GRANTED) {
+      Logger.getInstance().appendToLog("PojlibVrActivity: Microphone permission granted.");
+      startLaunchFromIntent();
+      return;
+    }
+
+    Logger.getInstance().appendToLog("PojlibVrActivity: Microphone permission denied, finishing VR activity.");
+    finish();
+  }
+
   private void applyVrWindowMode() {
     if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
       getWindow().setDecorFitsSystemWindows(false);
@@ -139,6 +160,21 @@ public class PojlibVrActivity extends PojlibRuntimeActivity {
         | View.SYSTEM_UI_FLAG_FULLSCREEN
         | View.SYSTEM_UI_FLAG_IMMERSIVE_STICKY
     );
+  }
+
+  private void startLaunchWhenReady() {
+    if (hasRecordAudioPermission()) {
+      startLaunchFromIntent();
+      return;
+    }
+
+    Logger.getInstance().appendToLog("PojlibVrActivity: Requesting microphone permission for voice chat.");
+    requestPermissions(new String[]{Manifest.permission.RECORD_AUDIO}, REQUEST_RECORD_AUDIO_PERMISSION);
+  }
+
+  private boolean hasRecordAudioPermission() {
+    return ContextCompat.checkSelfPermission(this, Manifest.permission.RECORD_AUDIO)
+      == PackageManager.PERMISSION_GRANTED;
   }
 
   private void startLaunchFromIntent() {
