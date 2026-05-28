@@ -47,6 +47,7 @@ android/keystores/debug.keystore
 example/ios/Pods
 
 # Ruby
+example/*.tgz
 example/vendor/
 !example/vendor/
 !example/vendor/*.tgz
