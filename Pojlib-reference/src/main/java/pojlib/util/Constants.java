@@ -15,6 +15,8 @@ public class Constants {
 
     public static final String QUILT_META_URL = "https://meta.quiltmc.org/v3";
 
+    public static final String NEOFORGE_MAVEN_URL = "https://maven.neoforged.net/releases/net/neoforged/neoforge";
+
     public static final String OAUTH_TOKEN_URL = "https://login.live.com/oauth20_token.srf";
 
     public static final String XBL_AUTH_URL = "https://user.auth.xboxlive.com/user/authenticate";

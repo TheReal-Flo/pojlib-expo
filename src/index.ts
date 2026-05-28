@@ -8,14 +8,16 @@ import PojlibExpoModule, {
   CreatePojlibInstanceOptions,
   CreatePojlibMrpackInstanceOptions,
   InstallDefaultPojlibInstanceOptions,
+  PojlibModLoader,
   PojlibConfig,
 } from './PojlibExpoModule';
 
-export const DEFAULT_POJLIB_MOD_LOADER = 'Fabric';
+export const POJLIB_MOD_LOADERS: PojlibModLoader[] = ['Fabric', 'NeoForge'];
+export const DEFAULT_POJLIB_MOD_LOADER: PojlibModLoader = 'Fabric';
 
 export function getDefaultPojlibInstanceName(
   minecraftVersion: string,
-  modLoader: string = DEFAULT_POJLIB_MOD_LOADER
+  modLoader: PojlibModLoader = DEFAULT_POJLIB_MOD_LOADER
 ): string {
   return modLoader === DEFAULT_POJLIB_MOD_LOADER
     ? `QuestCraft ${minecraftVersion}`

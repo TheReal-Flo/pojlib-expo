@@ -5,6 +5,7 @@ import { Picker } from '@react-native-picker/picker';
 import { useEvent } from 'expo';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import PojlibExpo, {
+  POJLIB_MOD_LOADERS,
   getPojlibGitBranch,
   getPojlibStatus,
   getPojlibSupportedVersions,
@@ -20,6 +21,7 @@ import PojlibExpo, {
   readPojlibPreviousLog,
   type PojlibAccount,
   type PojlibInstance,
+  type PojlibModLoader,
   type PojlibStatus,
 } from 'pojlib-expo';
 import {
@@ -137,6 +139,7 @@ function HomeScreen() {
   const [createModalVisible, setCreateModalVisible] = useState(false);
   const [newInstanceName, setNewInstanceName] = useState('');
   const [newInstanceVersion, setNewInstanceVersion] = useState('');
+  const [newInstanceModLoader, setNewInstanceModLoader] = useState<PojlibModLoader>('Fabric');
 
   const autoLoginAttemptedFor = useRef<string | null>(null);
   const hasInstallingInstance = instances.some((instance) => !instance.classpath);
@@ -371,6 +374,7 @@ function HomeScreen() {
     await installDefaultPojlibInstance({
       minecraftVersion: newInstanceVersion,
       instanceName: trimmedName,
+      modLoader: newInstanceModLoader,
     });
     await refreshAll();
     setSelectedInstanceName(trimmedName);
@@ -453,6 +457,7 @@ function HomeScreen() {
                 selectedValue={selectedInstanceName}
                 onValueChange={(value) => setSelectedInstanceName(String(value))}
                 enabled={instances.length > 0}
+                mode={Platform.OS === 'android' ? 'dropdown' : undefined}
                 style={styles.picker}
                 dropdownIconColor="#304c3d"
               >
@@ -487,6 +492,7 @@ function HomeScreen() {
               label="Create Instance"
               onPress={() => {
                 setNewInstanceVersion(supportedVersions[0] ?? '');
+                setNewInstanceModLoader('Fabric');
                 setCreateModalVisible(true);
               }}
             />
@@ -533,15 +539,16 @@ function HomeScreen() {
         <View style={styles.panel}>
           <Text style={styles.sectionTitle}>Installed Instances</Text>
           {instances.length === 0 ? <Text style={styles.muted}>No instances found</Text> : null}
-          {instances.map((instance) => (
-            <View key={instance.instanceName} style={styles.instanceCard}>
-              <Text style={styles.item}>
-                {instance.instanceName} | {instance.versionName ?? 'Unknown version'} |{' '}
-                {instance.extProjects.length} extra projects |{' '}
-                {instance.classpath ? 'Ready' : 'Installing'}
-                {instance.instanceName === selectedInstanceName ? ' | Selected' : ''}
-              </Text>
-            </View>
+            {instances.map((instance) => (
+              <View key={instance.instanceName} style={styles.instanceCard}>
+                <Text style={styles.item}>
+                  {instance.instanceName} | {instance.versionName ?? 'Unknown version'} |{' '}
+                  {instance.modLoader ?? 'Unknown loader'} |{' '}
+                  {instance.extProjects.length} extra projects |{' '}
+                  {instance.classpath ? 'Ready' : 'Installing'}
+                  {instance.instanceName === selectedInstanceName ? ' | Selected' : ''}
+                </Text>
+              </View>
           ))}
         </View>
 
@@ -629,6 +636,7 @@ function HomeScreen() {
                 selectedValue={newInstanceVersion}
                 onValueChange={(value) => setNewInstanceVersion(String(value))}
                 enabled={supportedVersions.length > 0}
+                mode={Platform.OS === 'android' ? 'dropdown' : undefined}
                 style={styles.picker}
                 dropdownIconColor="#304c3d"
               >
@@ -639,6 +647,20 @@ function HomeScreen() {
                     <Picker.Item key={version} label={`QuestCraft ${version}`} value={version} />
                   ))
                 )}
+              </Picker>
+            </View>
+            <Text style={styles.label}>Mod Loader</Text>
+            <View style={styles.pickerShell}>
+              <Picker
+                selectedValue={newInstanceModLoader}
+                onValueChange={(value) => setNewInstanceModLoader(value as PojlibModLoader)}
+                mode={Platform.OS === 'android' ? 'dropdown' : undefined}
+                style={styles.picker}
+                dropdownIconColor="#304c3d"
+              >
+                {POJLIB_MOD_LOADERS.map((modLoader) => (
+                  <Picker.Item key={modLoader} label={modLoader} value={modLoader} />
+                ))}
               </Picker>
             </View>
             <View style={styles.actions}>
@@ -787,6 +809,8 @@ const styles = StyleSheet.create({
   },
   pickerShell: {
     flex: 1,
+    minHeight: 56,
+    justifyContent: 'center',
     borderRadius: 16,
     borderWidth: 1,
     borderColor: '#c6bba8',
@@ -794,7 +818,18 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
   },
   picker: {
+    minHeight: 56,
     color: '#28322a',
+    ...Platform.select({
+      android: {
+        height: 56,
+        paddingHorizontal: 12,
+      },
+      ios: {
+        height: 180,
+      },
+      default: {},
+    }),
   },
   button: {
     backgroundColor: '#304c3d',

@@ -15,6 +15,8 @@ public class VersionInfo {
     public Library[] libraries;
     @SerializedName("mainClass")
     public String mainClass;
+    @SerializedName("inheritsFrom")
+    public String inheritsFrom;
     @SerializedName("arguments")
     public Arguments arguments;
     @SerializedName("assets")

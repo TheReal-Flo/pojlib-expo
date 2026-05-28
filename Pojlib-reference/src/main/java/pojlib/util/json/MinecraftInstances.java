@@ -77,6 +77,11 @@ public class MinecraftInstances {
         public String assetIndex;
         public String assetsDir;
         public String mainClass;
+        public String modLoader;
+        public String loaderVersionId;
+        public String inheritedVersionName;
+        public String[] jvmArgs;
+        public String[] gameArgs;
         public ProjectInfo[] extProjects;
         public boolean defaultMods;
 
@@ -86,15 +91,39 @@ public class MinecraftInstances {
                     "--accessToken", account.accessToken, "--userType", account.userType, "--versionType", "release"};
 
             List<String> allArgs = new ArrayList<>();
+            if (jvmArgs != null) {
+                for (String arg : jvmArgs) {
+                    allArgs.add(resolveLaunchPlaceholder(arg));
+                }
+            }
             allArgs.add("-cp");
             allArgs.add(classpath);
             allArgs.add(mainClass);
+            if (gameArgs != null) {
+                for (String arg : gameArgs) {
+                    allArgs.add(resolveLaunchPlaceholder(arg));
+                }
+            }
             allArgs.addAll(Arrays.asList(mcArgs));
             if (account.isDemoMode) {
                 allArgs.add("--demo");
             }
 
             return allArgs;
+        }
+
+        private String resolveLaunchPlaceholder(String value) {
+            if (value == null) {
+                return "";
+            }
+
+            String resolved = value;
+            String versionToken = inheritedVersionName != null ? inheritedVersionName : versionName;
+            resolved = resolved.replace("${library_directory}", gameDir + "/libraries");
+            resolved = resolved.replace("${classpath_separator}", File.pathSeparator);
+            resolved = resolved.replace("${classpath}", classpath == null ? "" : classpath);
+            resolved = resolved.replace("${version_name}", versionToken == null ? "" : versionToken);
+            return resolved;
         }
 
         public ProjectInfo[] toArray() {

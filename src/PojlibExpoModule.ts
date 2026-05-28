@@ -6,6 +6,7 @@ import type {
   CreatePojlibInstanceOptions,
   CreatePojlibMrpackInstanceOptions,
   InstallDefaultPojlibInstanceOptions,
+  PojlibModLoader,
   PojlibAccount,
   PojlibConfig,
   PojlibDownloadStatus,
@@ -39,13 +40,13 @@ declare class PojlibExpoModule extends NativeModule<PojlibExpoModuleEvents> {
     instanceName: string,
     useDefaultMods: boolean,
     minecraftVersion: string,
-    modLoader: string,
+    modLoader: PojlibModLoader,
     imageURL: string | null
   ): Promise<PojlibInstance>;
   createInstanceFromMrpack(
     instanceName: string,
     imageURL: string | null,
-    modLoader: string,
+    modLoader: PojlibModLoader,
     mrpackFile: string
   ): Promise<PojlibInstance>;
   deleteInstance(instanceName: string): Promise<boolean>;
@@ -77,6 +78,7 @@ export type {
   CreatePojlibInstanceOptions,
   CreatePojlibMrpackInstanceOptions,
   InstallDefaultPojlibInstanceOptions,
+  PojlibModLoader,
   PojlibConfig,
 };
 
