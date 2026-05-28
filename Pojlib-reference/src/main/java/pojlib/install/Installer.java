@@ -11,18 +11,20 @@ import org.apache.commons.io.FileUtils;
 import pojlib.PojlibRuntimeHost;
 import pojlib.APIHandler;
 import pojlib.util.GsonUtils;
+import pojlib.util.JREUtils;
 import pojlib.util.download.DownloadManager;
 import pojlib.util.download.DownloadUtils;
 import pojlib.util.json.MinecraftInstances;
 import pojlib.util.*;
 
-import java.io.BufferedReader;
 import java.io.File;
 import java.io.IOException;
-import java.io.InputStreamReader;
 import java.nio.file.Files;
 import java.nio.file.Paths;
+import java.util.Arrays;
 import java.util.HashMap;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Map;
 import java.util.StringJoiner;
 import java.util.concurrent.CompletableFuture;
@@ -204,15 +206,8 @@ public class Installer {
         }
         Logger.getInstance().appendToLog("NeoForge installer jar: " + installerJar.getAbsolutePath());
 
-        File javaBinary = new File(Constants.getRuntimeDir(), "bin/java");
-        if (!javaBinary.exists()) {
-            throw new IOException("NeoForge installation requires the bundled Java runtime, but bin/java was not found.");
-        }
-        javaBinary.setExecutable(true);
-
         Logger.getInstance().appendToLog("Installing NeoForge " + neoForgeVersion.version);
-        ProcessBuilder processBuilder = new ProcessBuilder(
-                javaBinary.getAbsolutePath(),
+        List<String> installerArgs = new ArrayList<>(Arrays.asList(
                 "-Djava.awt.headless=true",
                 "-Duser.home=" + installRoot.getAbsolutePath(),
                 "-jar",
@@ -220,40 +215,18 @@ public class Installer {
                 "--install-client",
                 installRoot.getAbsolutePath(),
                 "--skip-hash-check"
-        );
-        processBuilder.directory(installRoot);
-        processBuilder.redirectErrorStream(true);
+        ));
+        Logger.getInstance().appendToLog("NeoForge installer args: " + installerArgs);
 
-        Map<String, String> env = processBuilder.environment();
-        String runtimeHome = Constants.getRuntimeDir().getAbsolutePath();
-        String runtimeBin = new File(runtimeHome, "bin").getAbsolutePath();
-        String runtimeLib = new File(runtimeHome, "lib").getAbsolutePath();
-        env.put("JAVA_HOME", runtimeHome);
-        env.put("HOME", installRoot.getAbsolutePath());
-        env.put("TMPDIR", activity.getCacheDir().getAbsolutePath());
-        env.put("PATH", runtimeBin + File.pathSeparator + env.getOrDefault("PATH", ""));
-        env.put(
-                "LD_LIBRARY_PATH",
-                runtimeBin + ":" + runtimeLib + ":" + activity.getApplicationInfo().nativeLibraryDir
-        );
-
-        Process process = processBuilder.start();
-        try (BufferedReader reader = new BufferedReader(new InputStreamReader(process.getInputStream()))) {
-            String line;
-            while ((line = reader.readLine()) != null) {
-                Logger.getInstance().appendToLog(line);
-            }
-        }
-
+        int exitCode;
         try {
-            int exitCode = process.waitFor();
-            Logger.getInstance().appendToLog("NeoForge installer exited with code " + exitCode);
-            if (exitCode != 0) {
-                throw new IOException("NeoForge installer exited with code " + exitCode + ".");
-            }
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-            throw new IOException("NeoForge installation was interrupted.", e);
+            exitCode = JREUtils.launchJavaTool(activity, installRoot, installerArgs);
+        } catch (Throwable t) {
+            throw new IOException("NeoForge installer failed to start in-process.", t);
+        }
+        Logger.getInstance().appendToLog("NeoForge installer exited with code " + exitCode);
+        if (exitCode != 0) {
+            throw new IOException("NeoForge installer exited with code " + exitCode + ".");
         }
 
         VersionInfo installed = GsonUtils.jsonFileToObject(versionJson.getAbsolutePath(), VersionInfo.class);

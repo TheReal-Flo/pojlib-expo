@@ -408,6 +408,32 @@ public class JREUtils {
         return exitCode;
     }
 
+    public static int launchJavaTool(final Activity activity, final File workingDirectory, final List<String> toolArgs) throws Throwable {
+        if (workingDirectory == null) {
+            throw new IllegalArgumentException("workingDirectory must not be null");
+        }
+
+        MinecraftInstances.Instance toolInstance = new MinecraftInstances.Instance();
+        toolInstance.gameDir = workingDirectory.getAbsolutePath();
+
+        JREUtils.relocateLibPath(activity);
+        setJavaEnvironment(activity, toolInstance);
+
+        List<String> userArgs = getJavaArgs(activity, toolInstance);
+        userArgs.add("-Djdk.lang.Process.launchMechanism=FORK");
+        userArgs.addAll(toolArgs);
+
+        runtimeDir = Constants.getRuntimeDir().getAbsolutePath();
+
+        initJavaRuntime();
+        chdir(workingDirectory.getAbsolutePath());
+        userArgs.add(0, "java");
+
+        int exitCode = VMLauncher.launchJVM(userArgs.toArray(new String[0]));
+        Logger.getInstance().appendToLog("Java tool exit code: " + exitCode);
+        return exitCode;
+    }
+
     private static void writeDNS(Context ctx, File out) throws IOException {
         FileWriter writer = new FileWriter(out);
 
