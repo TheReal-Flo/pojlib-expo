@@ -43,6 +43,7 @@ public class JREUtils {
     public static String instanceHome;
     public static String jvmLibraryPath;
     private static String sNativeLibDir;
+    private static String sJavaNativeLibDir;
     private static String runtimeDir;
 
     private static String getSelectedRenderer() {
@@ -247,10 +248,18 @@ public class JREUtils {
         }
         Activity activity = (Activity) ctx;
         sNativeLibDir = activity.getApplicationInfo().nativeLibraryDir;
+        try {
+            sJavaNativeLibDir = PojlibRuntimeHost.installNativeLibraries(activity).getAbsolutePath();
+        } catch (IOException e) {
+            sJavaNativeLibDir = sNativeLibDir;
+            Logger.getInstance().appendToLog(
+                    "WARN: Failed to stage native libraries, falling back to app native dir: " + e.getMessage()
+            );
+        }
 
         LD_LIBRARY_PATH = Constants.getInternalHomeFile("runtimes/JRE/bin").getAbsolutePath() + ":" + Constants.getInternalHomeFile("runtimes/JRE/lib").getAbsolutePath() + ":" +
                 "/system/lib64:/vendor/lib64:/vendor/lib64/hw:" +
-                sNativeLibDir;
+                sNativeLibDir + (sJavaNativeLibDir.equals(sNativeLibDir) ? "" : ":" + sJavaNativeLibDir);
     }
 
     public static void setJavaEnvironment(Activity activity, MinecraftInstances.Instance instance) throws Throwable {
@@ -324,7 +333,8 @@ public class JREUtils {
         Logger.getInstance().appendToLog(
                 "JREUtils: Selected renderer=" + renderer +
                         ", graphicsLib=" + loadGraphicsLibrary() +
-                        ", nativeDir=" + rendererNativeDir
+                        ", nativeDir=" + rendererNativeDir +
+                        ", javaNativeDir=" + sJavaNativeLibDir
         );
         for (Map.Entry<String, String> env : envMap.entrySet()) {
             Logger.getInstance().appendToLog("Added custom env: " + env.getKey() + "=" + env.getValue());
@@ -479,6 +489,9 @@ public class JREUtils {
         } catch (IOException e) {
             Logger.getInstance().appendToLog("Couldn't write DNS servers! " + e.getMessage());
         }
+        String javaNativeSearchPath = sJavaNativeLibDir.equals(sNativeLibDir)
+                ? sJavaNativeLibDir
+                : sJavaNativeLibDir + ":" + sNativeLibDir;
         return new ArrayList<>(Arrays.asList(
                 "-Djava.home=" + Constants.getRuntimeDir(),
                 "-Djava.io.tmpdir=" + ctx.getCacheDir().getAbsolutePath(),
@@ -486,13 +499,13 @@ public class JREUtils {
                 "-Duser.language=" + System.getProperty("user.language"),
                 "-Dos.name=Linux",
                 "-Dos.version=Android-" + Build.VERSION.RELEASE,
-                "-Dorg.lwjgl.librarypath=" + sNativeLibDir,
+                "-Dorg.lwjgl.librarypath=" + sJavaNativeLibDir,
                 "-Dorg.lwjgl.util.Debug=true",
                 "-Dorg.lwjgl.util.DebugLoader=true",
-                "-Djna.boot.library.path=" + sNativeLibDir,
+                "-Djna.boot.library.path=" + javaNativeSearchPath,
                 "-Djna.tmpdir=" + jnaTempDir.getAbsolutePath(),
                 "-Djna.nosys=true",
-                "-Djava.library.path=" + sNativeLibDir,
+                "-Djava.library.path=" + javaNativeSearchPath,
                 "-Dglfwstub.windowWidth=" + 1280,
                 "-Dglfwstub.windowHeight=" + 720,
                 "-Dglfwstub.initEgl=false",
@@ -500,7 +513,7 @@ public class JREUtils {
                 "-Dnet.minecraft.clientmodname=" + "QuestCraft",
                 "-Dext.net.resolvPath=" + resConfFile,
                 "-Dsodium.checks.issue2561=false",
-                "-Dorg.sqlite.lib.path=" + sNativeLibDir
+                "-Dorg.sqlite.lib.path=" + sJavaNativeLibDir
         ));
     }
 

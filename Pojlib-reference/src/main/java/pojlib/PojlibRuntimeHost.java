@@ -79,20 +79,21 @@ public final class PojlibRuntimeHost {
 
         File[] sourceFiles = sourceDir.listFiles((dir, name) -> name.endsWith(".so"));
         List<String> copiedLibraries = new ArrayList<>();
+        Set<String> copiedNames = new LinkedHashSet<>();
+        int sourceDirCount = 0;
         if (sourceFiles != null && sourceFiles.length > 0) {
-            copySharedLibraries(sourceFiles, targetDir, copiedLibraries);
-            Logger.getInstance().appendToLog(
-                "Installed " + copiedLibraries.size() + " native libraries from " +
-                    sourceDir.getAbsolutePath() + " to " + targetDir.getAbsolutePath()
-            );
-            return targetDir;
+            copySharedLibraries(sourceFiles, targetDir, copiedLibraries, copiedNames);
+            sourceDirCount = copiedLibraries.size();
         }
 
-        copiedLibraries = extractSharedLibrariesFromInstalledApks(activity, targetDir);
+        int apkBefore = copiedLibraries.size();
+        extractSharedLibrariesFromInstalledApks(activity, targetDir, copiedLibraries, copiedNames);
+        int apkCount = copiedLibraries.size() - apkBefore;
         if (!copiedLibraries.isEmpty()) {
             Logger.getInstance().appendToLog(
-                "Installed " + copiedLibraries.size() + " native libraries from installed APKs to " +
-                    targetDir.getAbsolutePath()
+                "Installed " + copiedLibraries.size() + " native libraries to " +
+                    targetDir.getAbsolutePath() + " (" + sourceDirCount + " from " +
+                    sourceDir.getAbsolutePath() + ", " + apkCount + " from installed APKs)"
             );
             return targetDir;
         }
@@ -105,18 +106,30 @@ public final class PojlibRuntimeHost {
         );
     }
 
-    private static void copySharedLibraries(File[] sourceFiles, File targetDir, List<String> copiedLibraries)
+    private static void copySharedLibraries(
+        File[] sourceFiles,
+        File targetDir,
+        List<String> copiedLibraries,
+        Set<String> copiedNames
+    )
         throws IOException {
         for (File sourceFile : sourceFiles) {
             File targetFile = new File(targetDir, sourceFile.getName());
             if (!targetFile.exists() || targetFile.length() != sourceFile.length()) {
                 Files.copy(sourceFile.toPath(), targetFile.toPath(), StandardCopyOption.REPLACE_EXISTING);
             }
-            copiedLibraries.add(sourceFile.getName());
+            if (copiedNames.add(sourceFile.getName())) {
+                copiedLibraries.add(sourceFile.getName());
+            }
         }
     }
 
-    private static List<String> extractSharedLibrariesFromInstalledApks(Activity activity, File targetDir)
+    private static void extractSharedLibrariesFromInstalledApks(
+        Activity activity,
+        File targetDir,
+        List<String> copiedLibraries,
+        Set<String> copiedNames
+    )
         throws IOException {
         ApplicationInfo applicationInfo = activity.getApplicationInfo();
         List<String> apkPaths = new ArrayList<>();
@@ -140,8 +153,6 @@ public final class PojlibRuntimeHost {
             preferredAbiDirs.add(abi);
         }
 
-        List<String> copiedLibraries = new ArrayList<>();
-        Set<String> copiedNames = new LinkedHashSet<>();
         for (String apkPath : apkPaths) {
             File apkFile = new File(apkPath);
             if (!apkFile.isFile()) {
@@ -155,7 +166,6 @@ public final class PojlibRuntimeHost {
                 }
             }
         }
-        return copiedLibraries;
     }
 
     private static void extractLibrariesFromZipDirectory(
