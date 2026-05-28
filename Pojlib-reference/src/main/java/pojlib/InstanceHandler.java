@@ -208,6 +208,7 @@ public class InstanceHandler {
                 String clientJarPath;
                 String modLoaderClasspath;
                 if (finalNeoForge) {
+                    CompletableFuture<String> clientClasspath = Installer.installClient(minecraftVersionInfo, gameDir);
                     VersionInfo installedNeoForge = Installer.installNeoForge(activity, gameDir, minecraftVersion);
                     instance.mainClass = installedNeoForge.mainClass;
                     instance.loaderVersionId = installedNeoForge.id;
@@ -216,7 +217,7 @@ public class InstanceHandler {
                     instance.gameArgs = extractFlatArguments(installedNeoForge.arguments == null ? null : installedNeoForge.arguments.game);
                     modLoaderClasspath = Installer.installLibraries(installedNeoForge, gameDir).get();
                     String inheritedVersion = installedNeoForge.inheritsFrom != null ? installedNeoForge.inheritsFrom : minecraftVersion;
-                    clientJarPath = new File(gameDir + "/versions/" + inheritedVersion + "/" + inheritedVersion + ".jar").getAbsolutePath();
+                    clientJarPath = clientClasspath.get();
                 } else {
                     CompletableFuture<String> clientClasspath = Installer.installClient(minecraftVersionInfo, gameDir);
                     CompletableFuture<String> modLoaderClasspathFuture = Installer.installLibraries(finalModLoaderVersionInfo, gameDir);

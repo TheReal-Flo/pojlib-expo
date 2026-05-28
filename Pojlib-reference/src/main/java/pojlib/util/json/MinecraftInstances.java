@@ -86,7 +86,10 @@ public class MinecraftInstances {
         public boolean defaultMods;
 
         public List<String> generateLaunchArgs(MinecraftAccount account) {
-            String[] mcArgs = {"--username", account.username, "--version", versionName, "--gameDir", gameDir,
+            String selectedVersionId = loaderVersionId != null && !loaderVersionId.isEmpty()
+                    ? loaderVersionId
+                    : versionName;
+            String[] mcArgs = {"--username", account.username, "--version", selectedVersionId, "--gameDir", gameDir,
                     "--assetsDir", assetsDir, "--assetIndex", assetIndex, "--uuid", account.uuid.replace("-", ""),
                     "--accessToken", account.accessToken, "--userType", account.userType, "--versionType", "release"};
 
@@ -118,8 +121,10 @@ public class MinecraftInstances {
             }
 
             String resolved = value;
-            String versionToken = inheritedVersionName != null ? inheritedVersionName : versionName;
-            resolved = resolved.replace("${library_directory}", gameDir + "/libraries");
+            String versionToken = loaderVersionId != null && !loaderVersionId.isEmpty()
+                    ? loaderVersionId
+                    : (inheritedVersionName != null ? inheritedVersionName : versionName);
+            resolved = resolved.replace("${library_directory}", Constants.USER_HOME + "/libraries");
             resolved = resolved.replace("${classpath_separator}", File.pathSeparator);
             resolved = resolved.replace("${classpath}", classpath == null ? "" : classpath);
             resolved = resolved.replace("${version_name}", versionToken == null ? "" : versionToken);

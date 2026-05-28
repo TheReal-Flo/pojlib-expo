@@ -37,12 +37,10 @@ import {
 } from 'react-native';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
-import { WebView } from 'react-native-webview';
 
 const Drawer = createDrawerNavigator();
 const POLL_INTERVAL_MS = 2000;
 const MAX_LOG_LINES = 18;
-const MODRINTH_URL = 'https://modrinth.com/';
 const STORAGE_LAST_ACCOUNT_UUID = 'pojlib-expo-example:last-account-uuid';
 const STORAGE_LAST_INSTANCE_NAME = 'pojlib-expo-example:last-instance-name';
 
@@ -97,14 +95,6 @@ export default function App() {
               options={{
                 title: 'Pojlib Home',
                 drawerLabel: 'Home',
-              }}
-            />
-            <Drawer.Screen
-              name="Modrinth"
-              component={ModrinthScreen}
-              options={{
-                title: 'Modrinth',
-                drawerLabel: 'Modrinth',
               }}
             />
           </Drawer.Navigator>
@@ -686,35 +676,6 @@ function HomeScreen() {
   );
 }
 
-function ModrinthScreen() {
-  if (Platform.OS === 'web') {
-    return (
-      <SafeAreaView style={styles.container}>
-        <View style={styles.webFallback}>
-          <Text style={styles.header}>Modrinth</Text>
-          <Text style={styles.label}>
-            The embedded WebView screen is intended for Android and iOS builds.
-          </Text>
-          <Text style={styles.label}>
-            Open {MODRINTH_URL} in a native build to browse Modrinth here.
-          </Text>
-        </View>
-      </SafeAreaView>
-    );
-  }
-
-  return (
-    <View style={styles.webViewShell}>
-      <WebView
-        source={{ uri: MODRINTH_URL }}
-        style={styles.webView}
-        startInLoadingState
-        setSupportMultipleWindows={false}
-      />
-    </View>
-  );
-}
-
 function ActionButton(props: {
   label: string;
   onPress: () => void;
@@ -882,19 +843,6 @@ const styles = StyleSheet.create({
   logBlock: {
     fontSize: 12,
     color: '#3d423e',
-  },
-  webViewShell: {
-    flex: 1,
-    backgroundColor: '#d7e0d1',
-  },
-  webView: {
-    flex: 1,
-    backgroundColor: '#ffffff',
-  },
-  webFallback: {
-    flex: 1,
-    padding: 24,
-    justifyContent: 'center',
   },
   modalBackdrop: {
     flex: 1,
