@@ -64,6 +64,7 @@ yarn-error.log
 
 # Local tooling / investigation artifacts
 .tools/
+.packtmp/
 .tmp-vivecraft/
 .tmp-*/
 .tmp-*

@@ -1,0 +1,10 @@
+node_modules/
+.expo/
+.git/
+.tmp-*/
+android/.gradle/
+android/app/build/
+android/build/
+pojlib-expo-*.tgz
+vendor/*
+!vendor/pojlib-expo-0.1.3.tgz

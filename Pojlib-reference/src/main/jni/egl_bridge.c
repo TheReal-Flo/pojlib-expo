@@ -57,6 +57,7 @@ EGLSurface xrEglSurface;
 EGLConfig xrConfig;
 
 void* gbuffer;
+static EGLint sLastMakeCurrentError = EGL_SUCCESS;
 
 void pojav_openGLOnLoad() {
 }
@@ -95,18 +96,6 @@ void dlsym_egl() {
 
 void* pojavGetCurrentContext() {
     return xrEglContext;
-}
-
-static void log_gl_context_probe() {
-    const GLubyte* version = glGetString(GL_VERSION);
-    const GLubyte* vendor = glGetString(GL_VENDOR);
-    const GLubyte* renderer = glGetString(GL_RENDERER);
-    GLenum error = glGetError();
-
-    printf("XREGLBridge: native GL_VERSION=%s\n", version ? (const char*) version : "<null>");
-    printf("XREGLBridge: native GL_VENDOR=%s\n", vendor ? (const char*) vendor : "<null>");
-    printf("XREGLBridge: native GL_RENDERER=%s\n", renderer ? (const char*) renderer : "<null>");
-    printf("XREGLBridge: native glGetError()=0x%x\n", error);
 }
 
 int xrEglInit() {
@@ -210,12 +199,13 @@ void pojavMakeCurrent(void* window) {
     xrEglContext = window;
 
     if (success == EGL_FALSE) {
-        printf("XREGLBridge: Error: eglMakeCurrent() failed: %p\n", eglGetError_p());
+        EGLint error = eglGetError_p();
+        if (sLastMakeCurrentError != error) {
+            printf("XREGLBridge: Error: eglMakeCurrent() failed: 0x%x\n", error);
+            sLastMakeCurrentError = error;
+        }
     } else {
-        printf("XREGLBridge: eglMakeCurrent() succeed!\n");
-        printf("XREGLBridge: system eglGetCurrentDisplay()=%p\n", eglGetCurrentDisplay());
-        printf("XREGLBridge: system eglGetCurrentContext()=%p\n", eglGetCurrentContext());
-        log_gl_context_probe();
+        sLastMakeCurrentError = EGL_SUCCESS;
     }
 }
 

@@ -24,6 +24,7 @@ import java.nio.file.Paths;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.ArrayList;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.StringJoiner;
@@ -112,6 +113,7 @@ public class Installer {
         return CompletableFuture.supplyAsync(() -> {
             Logger.getInstance().appendToLog("Checking Libraries for: " + versionInfo.id);
             StringJoiner classpath = new StringJoiner(File.pathSeparator);
+            LinkedHashSet<String> seenClasspathEntries = new LinkedHashSet<>();
 
             for (VersionInfo.Library library : versionInfo.libraries) {
                 if (library.name.contains("lwjgl")) {
@@ -147,7 +149,10 @@ public class Installer {
                             }
                         }
                         if (DownloadUtils.compareSHA1(libraryFile, sha1)) {
-                            classpath.add(libraryFile.getAbsolutePath());
+                            String absolutePath = libraryFile.getAbsolutePath();
+                            if (seenClasspathEntries.add(absolutePath)) {
+                                classpath.add(absolutePath);
+                            }
                             break;
                         }
                     } catch (IOException e) {
@@ -157,7 +162,10 @@ public class Installer {
             }
 
             // DNS SRV Resolver fix
-            classpath.add(Constants.USER_HOME + "/hacks/ResConfHack.jar");
+            String resConfHackPath = Constants.USER_HOME + "/hacks/ResConfHack.jar";
+            if (seenClasspathEntries.add(resConfHackPath)) {
+                classpath.add(resConfHackPath);
+            }
 
             Logger.getInstance().appendToLog("Libraries installed");
             return classpath.toString();

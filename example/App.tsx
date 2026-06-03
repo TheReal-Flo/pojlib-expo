@@ -1,6 +1,4 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { createDrawerNavigator } from '@react-navigation/drawer';
-import { DefaultTheme, NavigationContainer, useIsFocused } from '@react-navigation/native';
 import { Picker } from '@react-native-picker/picker';
 import { useEvent } from 'expo';
 import { useEffect, useMemo, useRef, useState } from 'react';
@@ -29,10 +27,10 @@ import PojlibExpo, {
   type PojlibStatus,
 } from 'pojlib-expo';
 import {
+  ActivityIndicator,
   Modal,
   Platform,
   Pressable,
-  SafeAreaView,
   ScrollView,
   StyleSheet,
   Text,
@@ -40,18 +38,49 @@ import {
   View,
 } from 'react-native';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
-import { SafeAreaProvider } from 'react-native-safe-area-context';
+import { SafeAreaProvider, useSafeAreaInsets } from 'react-native-safe-area-context';
 import WebView, {
   type WebViewMessageEvent,
+  type WebViewNavigation,
 } from 'react-native-webview';
 
-const Drawer = createDrawerNavigator();
 const POLL_INTERVAL_MS = 2000;
 const MAX_LOG_LINES = 18;
 const STORAGE_LAST_ACCOUNT_UUID = 'pojlib-expo-example:last-account-uuid';
 const STORAGE_LAST_INSTANCE_NAME = 'pojlib-expo-example:last-instance-name';
 const MODRINTH_DEFAULT_URL = 'https://modrinth.com/mods?g=categories:%27vr%27';
 const MODRINTH_MESSAGE_TYPE = 'modrinth-download';
+
+const BRAND_NAME = 'AMETHYSTXR';
+const BRAND_TAGLINE = 'YOUR WORLD. ENHANCED.';
+
+const COLORS = {
+  bg: '#0a0813',
+  sidebar: '#070510',
+  panel: '#16131f',
+  panelAlt: '#1d1830',
+  hero: '#1a1230',
+  heroDeep: '#0f0a1f',
+  border: '#272036',
+  borderSoft: '#1f1a2d',
+  accent: '#8b5cf6',
+  accentBright: '#a855f7',
+  accentSoft: 'rgba(139, 92, 246, 0.16)',
+  accentGlow: 'rgba(168, 85, 247, 0.28)',
+  text: '#f4f1fb',
+  textMuted: '#a39db8',
+  textDim: '#6c6683',
+  danger: '#f87171',
+};
+
+type LauncherView = 'home' | 'installations' | 'skins' | 'changelog' | 'download' | 'settings';
+
+const HOME_TABS: { key: LauncherView; label: string }[] = [
+  { key: 'home', label: 'Home' },
+  { key: 'installations', label: 'Installations' },
+  { key: 'skins', label: 'Skins' },
+  { key: 'changelog', label: 'Changelog' },
+];
 
 type PendingModInstall = {
   instanceName: string;
@@ -143,78 +172,23 @@ true;
 `;
 
 export default function App() {
-  const navigationTheme = useMemo(
-    () => ({
-      ...DefaultTheme,
-      colors: {
-        ...DefaultTheme.colors,
-        background: '#d7e0d1',
-        card: '#f8f2e8',
-        border: '#c6bba8',
-        primary: '#304c3d',
-        text: '#28322a',
-      },
-    }),
-    []
-  );
-
   return (
     <GestureHandlerRootView style={styles.root}>
       <SafeAreaProvider>
-        <NavigationContainer theme={navigationTheme}>
-          <Drawer.Navigator
-            initialRouteName="Home"
-            screenOptions={{
-              headerStyle: {
-                backgroundColor: '#f8f2e8',
-              },
-              headerTintColor: '#28322a',
-              headerTitleStyle: {
-                fontWeight: '700',
-              },
-              sceneStyle: {
-                backgroundColor: '#d7e0d1',
-              },
-              drawerStyle: {
-                backgroundColor: '#f1eadc',
-                width: 280,
-              },
-              drawerActiveTintColor: '#f7f3e9',
-              drawerInactiveTintColor: '#304c3d',
-              drawerActiveBackgroundColor: '#304c3d',
-              drawerLabelStyle: {
-                fontWeight: '700',
-              },
-            }}
-          >
-            <Drawer.Screen
-              name="Home"
-              component={HomeScreen}
-              options={{
-                title: 'Pojlib Home',
-                drawerLabel: 'Home',
-              }}
-            />
-            <Drawer.Screen
-              name="Modrinth"
-              component={ModrinthScreen}
-              options={{
-                title: 'Modrinth Browser',
-                drawerLabel: 'Modrinth',
-              }}
-            />
-          </Drawer.Navigator>
-        </NavigationContainer>
+        <Launcher />
       </SafeAreaProvider>
     </GestureHandlerRootView>
   );
 }
 
-function HomeScreen() {
+function Launcher() {
+  const insets = useSafeAreaInsets();
   const bridgeAvailable = isPojlibBridgeAvailable();
   const gitBranch = getPojlibGitBranch();
   const logEvent = useEvent(PojlibExpo, 'onLog');
-  const isFocused = useIsFocused();
+  const webViewRef = useRef<WebView>(null);
+
+  const [activeView, setActiveView] = useState<LauncherView>('home');
 
   const [status, setStatus] = useState<PojlibStatus | null>(null);
   const [accounts, setAccounts] = useState<PojlibAccount[]>([]);
@@ -233,11 +207,21 @@ function HomeScreen() {
   const [lastInstanceName, setLastInstanceName] = useState<string | null>(null);
   const [selectedInstanceName, setSelectedInstanceName] = useState<string>('');
   const [preferencesLoaded, setPreferencesLoaded] = useState(false);
+
+  const [accountMenuVisible, setAccountMenuVisible] = useState(false);
+  const [instanceMenuVisible, setInstanceMenuVisible] = useState(false);
   const [createModalVisible, setCreateModalVisible] = useState(false);
+  const [loginModalVisible, setLoginModalVisible] = useState(false);
   const [newInstanceName, setNewInstanceName] = useState('');
   const [newInstanceVersion, setNewInstanceVersion] = useState('');
   const [newInstanceModLoader, setNewInstanceModLoader] = useState<PojlibModLoader>('Fabric');
   const [inspectedInstanceName, setInspectedInstanceName] = useState<string | null>(null);
+
+  const [webUrl, setWebUrl] = useState(MODRINTH_DEFAULT_URL);
+  const [pendingInstall, setPendingInstall] = useState<PendingModInstall | null>(null);
+  const [webCanGoBack, setWebCanGoBack] = useState(false);
+  const [webCanGoForward, setWebCanGoForward] = useState(false);
+  const [webViewFullscreen, setWebViewFullscreen] = useState(false);
 
   const autoLoginAttemptedFor = useRef<string | null>(null);
   const hasInstallingInstance = instances.some((instance) => !instance.classpath);
@@ -249,7 +233,17 @@ function HomeScreen() {
     (project) => project.type === 'mod'
   );
   const currentAccountUuid = status?.currentAccount?.uuid ?? null;
+  const accountName = status?.currentAccount?.username ?? status?.profileName ?? null;
   const canPlay = Boolean(currentAccountUuid && selectedInstanceName && !busyLabel);
+  const loginBusy =
+    busyLabel === 'Starting login' ||
+    busyLabel === 'Selecting account' ||
+    busyLabel === 'Restoring account';
+  const loginMessage = status?.msaMessage?.trim()
+    ? status.msaMessage
+    : loginBusy
+      ? 'Opening Microsoft sign-in...'
+      : 'Complete sign-in in the Microsoft page that opened, then return here.';
 
   useEffect(() => {
     void (async () => {
@@ -262,21 +256,11 @@ function HomeScreen() {
   }, []);
 
   useEffect(() => {
-    if (!isFocused) {
-      return;
-    }
-
-    void refreshAll();
-  }, [isFocused]);
-
-  useEffect(() => {
     const timer = setInterval(() => {
       void refreshStatusOnly();
     }, POLL_INTERVAL_MS);
 
-    return () => {
-      clearInterval(timer);
-    };
+    return () => clearInterval(timer);
   }, []);
 
   useEffect(() => {
@@ -288,9 +272,7 @@ function HomeScreen() {
       void refreshInstancesOnly();
     }, POLL_INTERVAL_MS);
 
-    return () => {
-      clearInterval(timer);
-    };
+    return () => clearInterval(timer);
   }, [hasInstallingInstance]);
 
   useEffect(() => {
@@ -360,6 +342,14 @@ function HomeScreen() {
   }, [currentAccountUuid]);
 
   useEffect(() => {
+    if (!loginModalVisible || !currentAccountUuid) {
+      return;
+    }
+
+    setLoginModalVisible(false);
+  }, [currentAccountUuid, loginModalVisible]);
+
+  useEffect(() => {
     if (supportedVersions.length > 0 && !newInstanceVersion) {
       setNewInstanceVersion(supportedVersions[0]);
     }
@@ -382,7 +372,9 @@ function HomeScreen() {
       lastInstanceName && instances.some((instance) => instance.instanceName === lastInstanceName)
         ? lastInstanceName
         : status?.currentInstance?.instanceName &&
-            instances.some((instance) => instance.instanceName === status.currentInstance?.instanceName)
+            instances.some(
+              (instance) => instance.instanceName === status.currentInstance?.instanceName
+            )
           ? status.currentInstance.instanceName
           : instances[0].instanceName;
 
@@ -399,7 +391,10 @@ function HomeScreen() {
   }, [selectedInstanceName]);
 
   useEffect(() => {
-    if (inspectedInstanceName && !instances.some((instance) => instance.instanceName === inspectedInstanceName)) {
+    if (
+      inspectedInstanceName &&
+      !instances.some((instance) => instance.instanceName === inspectedInstanceName)
+    ) {
       setInspectedInstanceName(null);
     }
   }, [inspectedInstanceName, instances]);
@@ -434,8 +429,7 @@ function HomeScreen() {
 
   async function refreshStatusOnly() {
     try {
-      const nextStatus = await getPojlibStatus();
-      setStatus(nextStatus);
+      setStatus(await getPojlibStatus());
     } catch {
       // Ignore poll failures during background refresh.
     }
@@ -476,6 +470,11 @@ function HomeScreen() {
   async function startLogin(accountUuid?: string | null) {
     await loginToPojlib(accountUuid ?? null);
     await refreshAll();
+  }
+
+  async function runLoginAction(label: string, accountUuid?: string | null) {
+    setLoginModalVisible(true);
+    await runAction(label, () => startLogin(accountUuid));
   }
 
   async function installPresetInstance() {
@@ -528,13 +527,8 @@ function HomeScreen() {
   async function uploadLogToMclogs(logContent: string, source: string) {
     const response = await fetch('https://api.mclo.gs/1/log', {
       method: 'POST',
-      headers: {
-        'content-type': 'application/json',
-      },
-      body: JSON.stringify({
-        content: logContent,
-        source,
-      }),
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ content: logContent, source }),
     });
 
     const payload = (await response.json()) as {
@@ -549,426 +543,20 @@ function HomeScreen() {
     return payload.url;
   }
 
-  return (
-    <SafeAreaView style={styles.container}>
-      <ScrollView contentContainerStyle={styles.content}>
-        <View style={styles.panel}>
-          <Text style={styles.header}>Pojlib Expo Tester</Text>
-          <Text style={styles.label}>Bridge available: {String(bridgeAvailable)}</Text>
-          <Text style={styles.label}>Pojlib branch: {gitBranch ?? 'Unavailable'}</Text>
-          <Text style={styles.label}>Busy: {busyLabel ?? 'Idle'}</Text>
-          <Text style={styles.label}>User home: {status?.userHome ?? 'Not initialized yet'}</Text>
-          <Text style={styles.label}>
-            Current profile: {status?.profileName ?? 'No account loaded'}
-          </Text>
-          <Text style={styles.label}>
-            Selected instance: {selectedInstanceName || 'No installed instance selected'}
-          </Text>
-          <Text style={styles.label}>
-            Microsoft login message: {status?.msaMessage || 'None'}
-          </Text>
-          {error ? <Text style={styles.error}>Error: {error}</Text> : null}
-        </View>
-
-        <View style={styles.panel}>
-          <Text style={styles.sectionTitle}>Quick Play</Text>
-          <Text style={styles.label}>
-            {currentAccountUuid
-              ? `Logged in as ${status?.currentAccount?.username ?? 'Unknown'}`
-              : lastAccountUuid
-                ? 'Restores your last used account automatically when available.'
-                : 'Login once to unlock Play and remember the last used account.'}
-          </Text>
-          <View style={styles.quickPlayRow}>
-            <View style={styles.pickerShell}>
-              <Picker
-                selectedValue={selectedInstanceName}
-                onValueChange={(value) => setSelectedInstanceName(String(value))}
-                enabled={instances.length > 0}
-                mode={Platform.OS === 'android' ? 'dropdown' : undefined}
-                style={styles.picker}
-                dropdownIconColor="#304c3d"
-              >
-                {instances.length === 0 ? (
-                  <Picker.Item label="No installed instances" value="" />
-                ) : (
-                  instances.map((instance) => (
-                    <Picker.Item
-                      key={instance.instanceName}
-                      label={instance.instanceName}
-                      value={instance.instanceName}
-                    />
-                  ))
-                )}
-              </Picker>
-            </View>
-            <ActionButton
-              label="Play"
-              disabled={!canPlay}
-              onPress={() =>
-                runAction(`Launching ${selectedInstanceName}`, async () => {
-                  await playSelectedInstance();
-                })
-              }
-            />
-          </View>
-          {!currentAccountUuid ? (
-            <Text style={styles.helperText}>Play is only enabled while a saved account is active.</Text>
-          ) : null}
-          <View style={styles.actions}>
-            <ActionButton
-              label="Create Instance"
-              onPress={() => {
-                setNewInstanceVersion(supportedVersions[0] ?? '');
-                setNewInstanceModLoader('Fabric');
-                setCreateModalVisible(true);
-              }}
-            />
-            <ActionButton
-              label="Refresh"
-              onPress={() =>
-                runAction('Refreshing', async () => {
-                  await refreshAll();
-                })
-              }
-            />
-            <ActionButton
-              label={currentAccountUuid ? 'Reopen Login' : 'Start Login'}
-              onPress={() =>
-                runAction('Starting login', async () => {
-                  await startLogin();
-                })
-              }
-            />
-          </View>
-        </View>
-
-        <View style={styles.panel}>
-          <Text style={styles.sectionTitle}>Accounts</Text>
-          {accounts.length === 0 ? <Text style={styles.muted}>No saved accounts</Text> : null}
-          {accounts.map((account) => (
-            <View key={account.uuid} style={styles.installRow}>
-              <Text style={styles.item}>
-                {account.username}
-                {status?.currentAccount?.uuid === account.uuid ? ' | Active' : ''}
-              </Text>
-              <ActionButton
-                label={status?.currentAccount?.uuid === account.uuid ? 'Selected' : 'Use Account'}
-                onPress={() =>
-                  runAction(`Selecting ${account.username}`, async () => {
-                    await startLogin(account.uuid);
-                  })
-                }
-              />
-            </View>
-          ))}
-        </View>
-
-        <View style={styles.panel}>
-          <Text style={styles.sectionTitle}>Installed Instances</Text>
-          {instances.length === 0 ? <Text style={styles.muted}>No instances found</Text> : null}
-          {instances.map((instance) => (
-            <View key={instance.instanceName} style={styles.instanceCard}>
-              <Text style={styles.item}>
-                {instance.instanceName} | {instance.versionName ?? 'Unknown version'} |{' '}
-                {instance.modLoader ?? 'Unknown loader'} | {instance.extProjects.length} extra projects |{' '}
-                {instance.classpath ? 'Ready' : 'Installing'}
-                {instance.instanceName === selectedInstanceName ? ' | Selected' : ''}
-              </Text>
-              <View style={styles.actions}>
-                <ActionButton
-                  label="Select"
-                  variant="secondary"
-                  onPress={() => setSelectedInstanceName(instance.instanceName)}
-                />
-                <ActionButton
-                  label="Inspect Mods"
-                  variant="secondary"
-                  onPress={() => setInspectedInstanceName(instance.instanceName)}
-                />
-              </View>
-            </View>
-          ))}
-        </View>
-
-        <View style={styles.panel}>
-          <Text style={styles.sectionTitle}>Supported Presets</Text>
-          <Text style={styles.muted}>
-            {supportedVersions.length > 0 ? supportedVersions.join(', ') : 'No versions loaded'}
-          </Text>
-        </View>
-
-        <View style={styles.panel}>
-          <Text style={styles.sectionTitle}>Live Log Events</Text>
-          {logLines.length === 0 ? <Text style={styles.muted}>No events yet</Text> : null}
-          {logLines.map((line, index) => (
-            <Text key={`${index}-${line}`} style={styles.logLine}>
-              {line}
-            </Text>
-          ))}
-        </View>
-
-        <View style={styles.panel}>
-          <Text style={styles.sectionTitle}>Latest Log File</Text>
-          <View style={styles.actions}>
-            <ActionButton
-              label="Upload Latest to mclo.gs"
-              onPress={() =>
-                runAction('Uploading latest log', async () => {
-                  if (!latestLog?.trim()) {
-                    throw new Error('No latest log is available to upload.');
-                  }
-
-                  setLatestMclogsUrl(await uploadLogToMclogs(latestLog, 'pojlib-expo-example'));
-                })
-              }
-            />
-          </View>
-          {latestMclogsUrl ? <Text style={styles.label}>mclo.gs: {latestMclogsUrl}</Text> : null}
-          <Text style={styles.logBlock}>{latestLog ?? 'No log file read yet'}</Text>
-        </View>
-
-        <View style={styles.panel}>
-          <Text style={styles.sectionTitle}>Previous Session Log</Text>
-          <View style={styles.actions}>
-            <ActionButton
-              label="Upload Previous to mclo.gs"
-              onPress={() =>
-                runAction('Uploading previous log', async () => {
-                  if (!previousLog?.trim()) {
-                    throw new Error('No previous session log is available to upload.');
-                  }
-
-                  setPreviousMclogsStatus(null);
-                  setPreviousMclogsUrl(await uploadLogToMclogs(previousLog, 'pojlib-expo-example'));
-                  setAutoUploadedPreviousLog(previousLog);
-                })
-              }
-            />
-          </View>
-          {previousMclogsUrl ? <Text style={styles.label}>mclo.gs: {previousMclogsUrl}</Text> : null}
-          {previousMclogsStatus ? <Text style={styles.label}>{previousMclogsStatus}</Text> : null}
-          <Text style={styles.logBlock}>{previousLog ?? 'No previous session log found yet'}</Text>
-        </View>
-      </ScrollView>
-
-      <Modal
-        transparent
-        visible={createModalVisible}
-        animationType="fade"
-        onRequestClose={() => setCreateModalVisible(false)}
-      >
-        <View style={styles.modalBackdrop}>
-          <View style={styles.modalCard}>
-            <Text style={styles.sectionTitle}>Create Instance</Text>
-            <Text style={styles.label}>Name</Text>
-            <TextInput
-              value={newInstanceName}
-              onChangeText={setNewInstanceName}
-              placeholder="QuestCraft My Pack"
-              placeholderTextColor="#7a7468"
-              style={styles.input}
-            />
-            <Text style={styles.label}>Preset</Text>
-            <View style={styles.pickerShell}>
-              <Picker
-                selectedValue={newInstanceVersion}
-                onValueChange={(value) => setNewInstanceVersion(String(value))}
-                enabled={supportedVersions.length > 0}
-                mode={Platform.OS === 'android' ? 'dropdown' : undefined}
-                style={styles.picker}
-                dropdownIconColor="#304c3d"
-              >
-                {supportedVersions.length === 0 ? (
-                  <Picker.Item label="No supported presets available" value="" />
-                ) : (
-                  supportedVersions.map((version) => (
-                    <Picker.Item key={version} label={`QuestCraft ${version}`} value={version} />
-                  ))
-                )}
-              </Picker>
-            </View>
-            <Text style={styles.label}>Mod Loader</Text>
-            <View style={styles.pickerShell}>
-              <Picker
-                selectedValue={newInstanceModLoader}
-                onValueChange={(value) => setNewInstanceModLoader(value as PojlibModLoader)}
-                mode={Platform.OS === 'android' ? 'dropdown' : undefined}
-                style={styles.picker}
-                dropdownIconColor="#304c3d"
-              >
-                {POJLIB_MOD_LOADERS.map((modLoader) => (
-                  <Picker.Item key={modLoader} label={modLoader} value={modLoader} />
-                ))}
-              </Picker>
-            </View>
-            <View style={styles.actions}>
-              <ActionButton
-                label="Create"
-                disabled={!newInstanceName.trim() || !newInstanceVersion || !!busyLabel}
-                onPress={() =>
-                  runAction('Creating instance', async () => {
-                    await installPresetInstance();
-                  })
-                }
-              />
-              <ActionButton
-                label="Cancel"
-                variant="secondary"
-                onPress={() => setCreateModalVisible(false)}
-              />
-            </View>
-          </View>
-        </View>
-      </Modal>
-
-      <Modal
-        transparent
-        visible={Boolean(inspectedInstance)}
-        animationType="fade"
-        onRequestClose={() => setInspectedInstanceName(null)}
-      >
-        <View style={styles.modalBackdrop}>
-          <View style={styles.modalCard}>
-            <Text style={styles.sectionTitle}>
-              Installed Mods{inspectedInstance ? ` | ${inspectedInstance.instanceName}` : ''}
-            </Text>
-            {inspectedMods.length === 0 ? (
-              <Text style={styles.muted}>No installed mods are registered for this instance.</Text>
-            ) : (
-              <ScrollView style={styles.modalList} contentContainerStyle={styles.modalListContent}>
-                {inspectedMods.map((project) => (
-                  <View key={`${project.slug}-${project.version ?? 'unknown'}`} style={styles.projectRow}>
-                    <View style={styles.projectTextWrap}>
-                      <Text style={styles.projectTitle}>{formatProjectTitle(project)}</Text>
-                      <Text style={styles.projectMeta}>
-                        {project.version ?? 'Unknown version'} | {project.fileName ?? 'Legacy file name'}
-                      </Text>
-                    </View>
-                    <ActionButton
-                      label="Delete"
-                      variant="secondary"
-                      disabled={!!busyLabel}
-                      onPress={() =>
-                        runAction(`Removing ${project.slug}`, async () => {
-                          if (!inspectedInstance) {
-                            throw new Error('The selected instance is no longer available.');
-                          }
-
-                          await removeInstalledProject(inspectedInstance.instanceName, project);
-                        })
-                      }
-                    />
-                  </View>
-                ))}
-              </ScrollView>
-            )}
-            <View style={styles.actions}>
-              <ActionButton
-                label="Close"
-                variant="secondary"
-                onPress={() => setInspectedInstanceName(null)}
-              />
-            </View>
-          </View>
-        </View>
-      </Modal>
-    </SafeAreaView>
-  );
-}
-
-function ModrinthScreen() {
-  const isFocused = useIsFocused();
-  const webViewRef = useRef<WebView>(null);
-
-  const [instances, setInstances] = useState<PojlibInstance[]>([]);
-  const [selectedInstanceName, setSelectedInstanceName] = useState('');
-  const [lastInstanceName, setLastInstanceName] = useState<string | null>(null);
-  const [webUrlInput, setWebUrlInput] = useState(MODRINTH_DEFAULT_URL);
-  const [webUrl, setWebUrl] = useState(MODRINTH_DEFAULT_URL);
-  const [busyLabel, setBusyLabel] = useState<string | null>(null);
-  const [error, setError] = useState<string | null>(null);
-  const [pendingInstall, setPendingInstall] = useState<PendingModInstall | null>(null);
-
-  useEffect(() => {
-    void loadStoredInstanceSelection();
-  }, []);
-
-  useEffect(() => {
-    if (!isFocused) {
-      return;
-    }
-
-    void refreshInstances();
-  }, [isFocused]);
-
-  useEffect(() => {
-    if (instances.length === 0) {
-      if (selectedInstanceName) {
-        setSelectedInstanceName('');
-      }
-      return;
-    }
-
-    if (instances.some((instance) => instance.instanceName === selectedInstanceName)) {
-      return;
-    }
-
-    const nextSelection =
-      lastInstanceName && instances.some((instance) => instance.instanceName === lastInstanceName)
-        ? lastInstanceName
-        : instances[0].instanceName;
-
-    setSelectedInstanceName(nextSelection);
-  }, [instances, lastInstanceName, selectedInstanceName]);
-
-  useEffect(() => {
-    if (!selectedInstanceName) {
-      return;
-    }
-
-    setLastInstanceName(selectedInstanceName);
-    void AsyncStorage.setItem(STORAGE_LAST_INSTANCE_NAME, selectedInstanceName);
-  }, [selectedInstanceName]);
-
-  async function loadStoredInstanceSelection() {
-    const value = await AsyncStorage.getItem(STORAGE_LAST_INSTANCE_NAME);
-    setLastInstanceName(value);
-    if (value) {
-      setSelectedInstanceName(value);
-    }
-  }
-
-  async function refreshInstances() {
-    setInstances(await loadPojlibInstances());
-  }
-
-  async function runAction(label: string, action: () => Promise<void>) {
-    setBusyLabel(label);
-    setError(null);
-
-    try {
-      await action();
-    } catch (nextError) {
-      setError(nextError instanceof Error ? nextError.message : String(nextError));
-    } finally {
-      setBusyLabel(null);
-    }
-  }
-
   function queueDownloadInstall(raw: {
     url: string;
     download?: string | null;
     pageUrl?: string | null;
     title?: string | null;
   }): boolean {
-    if (!selectedInstanceName) {
-      setError('Select an installed instance before downloading a mod.');
+    const targetInstanceName = selectedInstanceName || instances[0]?.instanceName;
+    if (!targetInstanceName) {
+      setError('Install at least one instance before downloading a mod.');
       return true;
     }
 
     const pending = createPendingInstall(
-      selectedInstanceName,
+      targetInstanceName,
       raw.url,
       raw.download ?? null,
       raw.pageUrl ?? webUrl,
@@ -1019,6 +607,12 @@ function ModrinthScreen() {
     return !intercepted;
   }
 
+  function handleWebViewNavigationChange(state: WebViewNavigation) {
+    setWebCanGoBack(state.canGoBack);
+    setWebCanGoForward(state.canGoForward);
+    setWebUrl(state.url);
+  }
+
   async function confirmInstall() {
     if (!pendingInstall) {
       return;
@@ -1042,157 +636,1040 @@ function ModrinthScreen() {
         });
       }
 
-      await refreshInstances();
+      await refreshInstancesOnly();
       setPendingInstall(null);
     });
   }
 
+  const isHomeRoute = activeView === 'home' || activeView === 'installations' ||
+    activeView === 'skins' || activeView === 'changelog';
+
   return (
-    <SafeAreaView style={styles.container}>
-      <View style={styles.content}>
-        <View style={styles.panel}>
-          <Text style={styles.sectionTitle}>Modrinth</Text>
-          <Text style={styles.label}>
-            Target instance: {selectedInstanceName || 'Select an installed instance first'}
+    <View style={[styles.shell, { paddingTop: insets.top }]}>
+      <View style={styles.body}>
+        {!webViewFullscreen ? (
+          <Sidebar
+            activeView={activeView}
+            accountName={accountName}
+            loggedIn={Boolean(currentAccountUuid)}
+            onNavigate={setActiveView}
+            onOpenAccountMenu={() => setAccountMenuVisible(true)}
+          />
+        ) : null}
+
+        <View style={[styles.main, webViewFullscreen ? styles.mainFullscreen : null]}>
+          {isHomeRoute ? (
+            <TopTabs
+              active={activeView}
+              onSelect={(key) => setActiveView(key)}
+            />
+          ) : !webViewFullscreen ? (
+            <View style={styles.routeHeader}>
+              <Text style={styles.routeHeaderTitle}>
+                {activeView === 'download' ? 'Download Content' : 'Settings'}
+              </Text>
+            </View>
+          ) : null}
+
+          <View style={styles.mainContent}>
+            {error ? (
+              <View style={styles.errorBanner}>
+                <Text style={styles.errorBannerText}>{error}</Text>
+                <Pressable onPress={() => setError(null)} hitSlop={10}>
+                  <Text style={styles.errorBannerClose}>×</Text>
+                </Pressable>
+              </View>
+            ) : null}
+
+            {activeView === 'home' ? (
+              <HomeView
+                selectedInstance={selectedInstance}
+                canPlay={canPlay}
+                busyLabel={busyLabel}
+                loggedIn={Boolean(currentAccountUuid)}
+                onOpenInstanceMenu={() => setInstanceMenuVisible(true)}
+                onLogin={() => void runLoginAction('Starting login')}
+                onPlay={() =>
+                  runAction(`Launching ${selectedInstanceName}`, () => playSelectedInstance())
+                }
+              />
+            ) : null}
+
+            {activeView === 'installations' ? (
+              <InstallationsView
+                instances={instances}
+                selectedInstanceName={selectedInstanceName}
+                busyLabel={busyLabel}
+                onSelect={setSelectedInstanceName}
+                onInspect={setInspectedInstanceName}
+                onCreate={() => {
+                  setNewInstanceVersion(supportedVersions[0] ?? '');
+                  setNewInstanceModLoader('Fabric');
+                  setCreateModalVisible(true);
+                }}
+                onRefresh={() => runAction('Refreshing', () => refreshAll())}
+              />
+            ) : null}
+
+            {activeView === 'skins' ? <SkinsView /> : null}
+
+            {activeView === 'changelog' ? (
+              <ChangelogView
+                logLines={logLines}
+                latestLog={latestLog}
+                previousLog={previousLog}
+                latestMclogsUrl={latestMclogsUrl}
+                previousMclogsUrl={previousMclogsUrl}
+                previousMclogsStatus={previousMclogsStatus}
+                onUploadLatest={() =>
+                  runAction('Uploading latest log', async () => {
+                    if (!latestLog?.trim()) {
+                      throw new Error('No latest log is available to upload.');
+                    }
+                    setLatestMclogsUrl(await uploadLogToMclogs(latestLog, 'pojlib-expo-example'));
+                  })
+                }
+                onUploadPrevious={() =>
+                  runAction('Uploading previous log', async () => {
+                    if (!previousLog?.trim()) {
+                      throw new Error('No previous session log is available to upload.');
+                    }
+                    setPreviousMclogsStatus(null);
+                    setPreviousMclogsUrl(
+                      await uploadLogToMclogs(previousLog, 'pojlib-expo-example')
+                    );
+                    setAutoUploadedPreviousLog(previousLog);
+                  })
+                }
+              />
+            ) : null}
+
+            {activeView === 'download' ? (
+              <DownloadView
+                webViewRef={webViewRef}
+                webUrl={webUrl}
+                canGoBack={webCanGoBack}
+                canGoForward={webCanGoForward}
+                isFullscreen={webViewFullscreen}
+                onGoBack={() => webViewRef.current?.goBack()}
+                onGoForward={() => webViewRef.current?.goForward()}
+                onToggleFullscreen={() => setWebViewFullscreen((current) => !current)}
+                onMessage={handleWebViewMessage}
+                onShouldStartLoad={handleShouldStartLoad}
+                onNavigationStateChange={handleWebViewNavigationChange}
+              />
+            ) : null}
+
+            {activeView === 'settings' ? (
+              <SettingsView
+                bridgeAvailable={bridgeAvailable}
+                gitBranch={gitBranch}
+                status={status}
+                accounts={accounts}
+                currentAccountUuid={currentAccountUuid}
+                busyLabel={busyLabel}
+                onUseAccount={(uuid) => void runLoginAction('Selecting account', uuid)}
+                onLogin={() => void runLoginAction('Starting login')}
+              />
+            ) : null}
+          </View>
+        </View>
+      </View>
+
+      {busyLabel ? (
+        <View style={styles.busyPill}>
+          <ActivityIndicator size="small" color={COLORS.accentBright} />
+          <Text style={styles.busyPillText}>{busyLabel}</Text>
+        </View>
+      ) : null}
+
+      <AccountMenu
+        visible={accountMenuVisible}
+        accounts={accounts}
+        currentAccountUuid={currentAccountUuid}
+        busy={Boolean(busyLabel)}
+        onClose={() => setAccountMenuVisible(false)}
+        onUseAccount={(uuid) => {
+          setAccountMenuVisible(false);
+          void runLoginAction('Selecting account', uuid);
+        }}
+        onAddAccount={() => {
+          setAccountMenuVisible(false);
+          void runLoginAction('Starting login');
+        }}
+      />
+
+      <LoginStatusModal
+        visible={loginModalVisible}
+        message={loginMessage}
+        busy={loginBusy}
+        onClose={() => setLoginModalVisible(false)}
+      />
+
+      <InstanceMenu
+        visible={instanceMenuVisible}
+        instances={instances}
+        selectedInstanceName={selectedInstanceName}
+        onClose={() => setInstanceMenuVisible(false)}
+        onSelect={(name) => {
+          setSelectedInstanceName(name);
+          setInstanceMenuVisible(false);
+        }}
+      />
+
+      <CreateInstanceModal
+        visible={createModalVisible}
+        name={newInstanceName}
+        version={newInstanceVersion}
+        modLoader={newInstanceModLoader}
+        supportedVersions={supportedVersions}
+        busy={Boolean(busyLabel)}
+        onChangeName={setNewInstanceName}
+        onChangeVersion={setNewInstanceVersion}
+        onChangeModLoader={setNewInstanceModLoader}
+        onCancel={() => setCreateModalVisible(false)}
+        onCreate={() => runAction('Creating instance', () => installPresetInstance())}
+      />
+
+      <InspectModsModal
+        instance={inspectedInstance}
+        mods={inspectedMods}
+        busy={Boolean(busyLabel)}
+        onClose={() => setInspectedInstanceName(null)}
+        onRemove={(project) =>
+          runAction(`Removing ${project.slug}`, async () => {
+            if (!inspectedInstance) {
+              throw new Error('The selected instance is no longer available.');
+            }
+            await removeInstalledProject(inspectedInstance.instanceName, project);
+          })
+        }
+      />
+
+      <InstallModModal
+        pending={pendingInstall}
+        instances={instances}
+        busy={Boolean(busyLabel)}
+        onCancel={() => setPendingInstall(null)}
+        onChangeInstance={(name) => {
+          setPendingInstall((current) =>
+            current ? { ...current, instanceName: name } : current
+          );
+        }}
+        onConfirm={() => void confirmInstall()}
+      />
+    </View>
+  );
+}
+
+function Sidebar(props: {
+  activeView: LauncherView;
+  accountName: string | null;
+  loggedIn: boolean;
+  onNavigate: (view: LauncherView) => void;
+  onOpenAccountMenu: () => void;
+}) {
+  const homeActive =
+    props.activeView === 'home' ||
+    props.activeView === 'installations' ||
+    props.activeView === 'skins' ||
+    props.activeView === 'changelog';
+
+  return (
+    <View style={styles.sidebar}>
+      <Pressable style={styles.profile} onPress={props.onOpenAccountMenu}>
+        <View style={styles.avatar}>
+          <Text style={styles.avatarText}>
+            {(props.accountName ?? 'S').slice(0, 1).toUpperCase()}
           </Text>
-          <View style={styles.pickerShell}>
+        </View>
+        <View style={styles.profileText}>
+          <Text style={styles.profileName} numberOfLines={1}>
+            {props.accountName ?? 'Add account'}
+          </Text>
+          <Text style={styles.profileSub} numberOfLines={1}>
+            {props.loggedIn ? 'Minecraft account' : 'Not signed in'}
+          </Text>
+        </View>
+        <Text style={styles.chevron}>⌄</Text>
+      </Pressable>
+
+      <View style={styles.navList}>
+        <NavItem
+          glyph="⌂"
+          label="Home"
+          active={homeActive}
+          onPress={() => props.onNavigate('home')}
+        />
+        <NavItem
+          glyph="⤓"
+          label="Download Content"
+          active={props.activeView === 'download'}
+          onPress={() => props.onNavigate('download')}
+        />
+      </View>
+
+      <View style={styles.sidebarSpacer} />
+
+      <NavItem
+        glyph="⚙"
+        label="Settings"
+        active={props.activeView === 'settings'}
+        onPress={() => props.onNavigate('settings')}
+      />
+    </View>
+  );
+}
+
+function NavItem(props: {
+  glyph: string;
+  label: string;
+  active: boolean;
+  onPress: () => void;
+}) {
+  return (
+    <Pressable
+      onPress={props.onPress}
+      style={[styles.navItem, props.active ? styles.navItemActive : null]}
+    >
+      <Text style={[styles.navGlyph, props.active ? styles.navGlyphActive : null]}>
+        {props.glyph}
+      </Text>
+      <Text style={[styles.navLabel, props.active ? styles.navLabelActive : null]}>
+        {props.label}
+      </Text>
+    </Pressable>
+  );
+}
+
+function TopTabs(props: { active: LauncherView; onSelect: (key: LauncherView) => void }) {
+  return (
+    <View style={styles.topTabs}>
+      {HOME_TABS.map((tab) => {
+        const active = props.active === tab.key;
+        return (
+          <Pressable key={tab.key} onPress={() => props.onSelect(tab.key)} style={styles.topTab}>
+            <Text style={[styles.topTabLabel, active ? styles.topTabLabelActive : null]}>
+              {tab.label}
+            </Text>
+            {active ? <View style={styles.topTabUnderline} /> : null}
+          </Pressable>
+        );
+      })}
+    </View>
+  );
+}
+
+function HomeView(props: {
+  selectedInstance: PojlibInstance | null;
+  canPlay: boolean;
+  busyLabel: string | null;
+  loggedIn: boolean;
+  onOpenInstanceMenu: () => void;
+  onLogin: () => void;
+  onPlay: () => void;
+}) {
+  const versionLabel = props.selectedInstance?.versionName ?? 'No version';
+  const instanceLabel = props.selectedInstance?.instanceName ?? 'No instance selected';
+
+  return (
+    <View style={styles.homeWrap}>
+      <View style={styles.hero}>
+        <View style={styles.heroGlowOne} />
+        <View style={styles.heroGlowTwo} />
+        <View style={styles.heroContent}>
+          <Text style={styles.heroTitle}>{BRAND_NAME}</Text>
+          <View style={styles.heroTaglineRow}>
+            <Text style={styles.heroDiamond}>◆</Text>
+            <Text style={styles.heroTagline}>{BRAND_TAGLINE}</Text>
+            <Text style={styles.heroDiamond}>◆</Text>
+          </View>
+        </View>
+      </View>
+
+      <View style={styles.playBar}>
+        <Pressable style={styles.versionSelector} onPress={props.onOpenInstanceMenu}>
+          <View style={styles.versionIcon}>
+            <View style={styles.versionIconInner} />
+          </View>
+          <View style={styles.versionText}>
+            <Text style={styles.versionTitle} numberOfLines={1}>
+              {instanceLabel}
+            </Text>
+            <Text style={styles.versionSub} numberOfLines={1}>
+              {versionLabel}
+            </Text>
+          </View>
+          <Text style={styles.chevron}>⌄</Text>
+        </Pressable>
+
+        {props.loggedIn ? (
+          <Pressable
+            onPress={props.onPlay}
+            disabled={!props.canPlay}
+            style={[styles.playButton, !props.canPlay ? styles.playButtonDisabled : null]}
+          >
+            <Text style={styles.playButtonText}>Play</Text>
+          </Pressable>
+        ) : (
+          <Pressable onPress={props.onLogin} style={styles.playButton}>
+            <Text style={styles.playButtonText}>Sign In</Text>
+          </Pressable>
+        )}
+      </View>
+    </View>
+  );
+}
+
+function InstallationsView(props: {
+  instances: PojlibInstance[];
+  selectedInstanceName: string;
+  busyLabel: string | null;
+  onSelect: (name: string) => void;
+  onInspect: (name: string) => void;
+  onCreate: () => void;
+  onRefresh: () => void;
+}) {
+  return (
+    <ScrollView contentContainerStyle={styles.scrollContent}>
+      <View style={styles.sectionHeader}>
+        <Text style={styles.sectionTitle}>Installations</Text>
+        <View style={styles.sectionActions}>
+          <SecondaryButton label="Refresh" onPress={props.onRefresh} />
+          <PrimaryButton label="New Installation" onPress={props.onCreate} />
+        </View>
+      </View>
+
+      {props.instances.length === 0 ? (
+        <Card>
+          <Text style={styles.muted}>
+            No installations yet. Create one to start playing.
+          </Text>
+        </Card>
+      ) : null}
+
+      {props.instances.map((instance) => {
+        const selected = instance.instanceName === props.selectedInstanceName;
+        return (
+          <View
+            key={instance.instanceName}
+            style={[styles.instanceCard, selected ? styles.instanceCardActive : null]}
+          >
+            <View style={styles.instanceIcon}>
+              <View style={styles.versionIconInner} />
+            </View>
+            <View style={styles.instanceInfo}>
+              <Text style={styles.instanceName} numberOfLines={1}>
+                {instance.instanceName}
+              </Text>
+              <Text style={styles.instanceMeta} numberOfLines={1}>
+                {(instance.versionName ?? 'Unknown version') +
+                  '  •  ' +
+                  (instance.modLoader ?? 'Unknown loader') +
+                  '  •  ' +
+                  instance.extProjects.length +
+                  ' mods  •  ' +
+                  (instance.classpath ? 'Ready' : 'Installing…')}
+              </Text>
+            </View>
+            <View style={styles.instanceActions}>
+              <SecondaryButton
+                label={selected ? 'Selected' : 'Select'}
+                onPress={() => props.onSelect(instance.instanceName)}
+              />
+              <SecondaryButton
+                label="Mods"
+                onPress={() => props.onInspect(instance.instanceName)}
+              />
+            </View>
+          </View>
+        );
+      })}
+    </ScrollView>
+  );
+}
+
+function SkinsView() {
+  return (
+    <View style={styles.placeholder}>
+      <Text style={styles.placeholderGlyph}>◆</Text>
+      <Text style={styles.placeholderTitle}>Skins</Text>
+      <Text style={styles.placeholderText}>
+        Skin management is coming soon to {BRAND_NAME}.
+      </Text>
+    </View>
+  );
+}
+
+function ChangelogView(props: {
+  logLines: string[];
+  latestLog: string | null;
+  previousLog: string | null;
+  latestMclogsUrl: string | null;
+  previousMclogsUrl: string | null;
+  previousMclogsStatus: string | null;
+  onUploadLatest: () => void;
+  onUploadPrevious: () => void;
+}) {
+  return (
+    <ScrollView contentContainerStyle={styles.scrollContent}>
+      <Text style={styles.sectionTitle}>Live Log</Text>
+      <Card>
+        {props.logLines.length === 0 ? (
+          <Text style={styles.muted}>No events yet.</Text>
+        ) : (
+          props.logLines.map((line, index) => (
+            <Text key={`${index}-${line}`} style={styles.logLine}>
+              {line}
+            </Text>
+          ))
+        )}
+      </Card>
+
+      <Text style={styles.sectionTitle}>Latest Log File</Text>
+      <Card>
+        <View style={styles.sectionActions}>
+          <SecondaryButton label="Upload to mclo.gs" onPress={props.onUploadLatest} />
+        </View>
+        {props.latestMclogsUrl ? (
+          <Text style={styles.linkText}>{props.latestMclogsUrl}</Text>
+        ) : null}
+        <Text style={styles.muted}>
+          {props.latestLog?.trim() ? 'Latest log file is available.' : 'No log file read yet.'}
+        </Text>
+      </Card>
+
+      <Text style={styles.sectionTitle}>Previous Session Log</Text>
+      <Card>
+        <View style={styles.sectionActions}>
+          <SecondaryButton label="Upload to mclo.gs" onPress={props.onUploadPrevious} />
+        </View>
+        {props.previousMclogsUrl ? (
+          <Text style={styles.linkText}>{props.previousMclogsUrl}</Text>
+        ) : null}
+        {props.previousMclogsStatus ? (
+          <Text style={styles.muted}>{props.previousMclogsStatus}</Text>
+        ) : null}
+        <Text style={styles.muted}>
+          {props.previousLog?.trim()
+            ? 'Previous session log is available.'
+            : 'No previous session log found yet.'}
+        </Text>
+      </Card>
+    </ScrollView>
+  );
+}
+
+function DownloadView(props: {
+  webViewRef: React.RefObject<WebView | null>;
+  webUrl: string;
+  canGoBack: boolean;
+  canGoForward: boolean;
+  isFullscreen: boolean;
+  onGoBack: () => void;
+  onGoForward: () => void;
+  onToggleFullscreen: () => void;
+  instances?: PojlibInstance[];
+  selectedInstanceName?: string;
+  webUrlInput?: string;
+  onChangeUrlInput?: (value: string) => void;
+  onSelectInstance?: (name: string) => void;
+  onGo?: () => void;
+  onReload?: () => void;
+  onMessage: (event: WebViewMessageEvent) => void;
+  onShouldStartLoad: (request: { url: string; mainDocumentURL?: string }) => boolean;
+  onNavigationStateChange: (state: WebViewNavigation) => void;
+}) {
+  return (
+    <View style={styles.downloadWrap}>
+      <View style={styles.downloadBar}>
+        <SecondaryButton label="Back" disabled={!props.canGoBack} onPress={props.onGoBack} />
+        <SecondaryButton
+          label="Forward"
+          disabled={!props.canGoForward}
+          onPress={props.onGoForward}
+        />
+        <View style={[styles.downloadPicker, styles.downloadControlHidden]}>
+          <Picker
+            selectedValue={props.selectedInstanceName ?? ''}
+            onValueChange={(value) => props.onSelectInstance?.(String(value))}
+            enabled={(props.instances?.length ?? 0) > 0}
+            mode={Platform.OS === 'android' ? 'dropdown' : undefined}
+            style={styles.picker}
+            dropdownIconColor={COLORS.accentBright}
+          >
+            {(props.instances?.length ?? 0) === 0 ? (
+              <Picker.Item label="No installed instances" value="" color={COLORS.text} />
+            ) : (
+              (props.instances ?? []).map((instance) => (
+                <Picker.Item
+                  key={instance.instanceName}
+                  label={`${instance.instanceName} • ${instance.modLoader ?? 'Unknown'}`}
+                  value={instance.instanceName}
+                  color={COLORS.text}
+                />
+              ))
+            )}
+          </Picker>
+        </View>
+        <TextInput
+          value={props.webUrlInput ?? ''}
+          onChangeText={(value) => props.onChangeUrlInput?.(value)}
+          autoCapitalize="none"
+          autoCorrect={false}
+          placeholder="https://modrinth.com/mod/vivecraft"
+          placeholderTextColor={COLORS.textDim}
+          style={[styles.urlInput, styles.downloadControlHidden]}
+        />
+      </View>
+
+      <View style={styles.webViewShell}>
+        <WebView
+          ref={props.webViewRef}
+          source={{ uri: props.webUrl }}
+          style={styles.webView}
+          onMessage={props.onMessage}
+          onShouldStartLoadWithRequest={props.onShouldStartLoad}
+          onNavigationStateChange={props.onNavigationStateChange}
+          injectedJavaScriptBeforeContentLoaded={MODRINTH_INJECTED_JAVASCRIPT}
+          setSupportMultipleWindows={false}
+          javaScriptEnabled
+          domStorageEnabled
+          startInLoadingState
+        />
+        <Pressable style={styles.fullscreenFab} onPress={props.onToggleFullscreen}>
+          <Text style={styles.fullscreenFabText}>{props.isFullscreen ? '⤡' : '⤢'}</Text>
+        </Pressable>
+      </View>
+    </View>
+  );
+}
+
+function SettingsView(props: {
+  bridgeAvailable: boolean;
+  gitBranch: string | null;
+  status: PojlibStatus | null;
+  accounts: PojlibAccount[];
+  currentAccountUuid: string | null;
+  busyLabel: string | null;
+  onUseAccount: (uuid: string) => void;
+  onLogin: () => void;
+}) {
+  return (
+    <ScrollView contentContainerStyle={styles.scrollContent}>
+      <Text style={styles.sectionTitle}>Accounts</Text>
+      <Card>
+        {props.accounts.length === 0 ? (
+          <Text style={styles.muted}>No saved accounts.</Text>
+        ) : (
+          props.accounts.map((account) => {
+            const active = props.currentAccountUuid === account.uuid;
+            return (
+              <View key={account.uuid} style={styles.accountRow}>
+                <View style={styles.avatarSmall}>
+                  <Text style={styles.avatarText}>
+                    {account.username.slice(0, 1).toUpperCase()}
+                  </Text>
+                </View>
+                <Text style={styles.accountName} numberOfLines={1}>
+                  {account.username}
+                  {active ? '  •  Active' : ''}
+                </Text>
+                <SecondaryButton
+                  label={active ? 'Selected' : 'Use'}
+                  onPress={() => props.onUseAccount(account.uuid)}
+                />
+              </View>
+            );
+          })
+        )}
+        <View style={styles.sectionActions}>
+          <PrimaryButton
+            label={props.currentAccountUuid ? 'Add Another Account' : 'Sign In'}
+            onPress={props.onLogin}
+          />
+        </View>
+      </Card>
+
+      <Text style={styles.sectionTitle}>Diagnostics</Text>
+      <Card>
+        <DiagnosticRow label="Bridge available" value={String(props.bridgeAvailable)} />
+        <DiagnosticRow label="Pojlib branch" value={props.gitBranch ?? 'Unavailable'} />
+        <DiagnosticRow label="User home" value={props.status?.userHome ?? 'Not initialized'} />
+        <DiagnosticRow
+          label="Current profile"
+          value={props.status?.profileName ?? 'No account loaded'}
+        />
+        {props.status?.msaMessage ? (
+          <DiagnosticRow label="Microsoft login" value={props.status.msaMessage} />
+        ) : null}
+      </Card>
+    </ScrollView>
+  );
+}
+
+function DiagnosticRow(props: { label: string; value: string }) {
+  return (
+    <View style={styles.diagnosticRow}>
+      <Text style={styles.diagnosticLabel}>{props.label}</Text>
+      <Text style={styles.diagnosticValue} numberOfLines={2}>
+        {props.value}
+      </Text>
+    </View>
+  );
+}
+
+function AccountMenu(props: {
+  visible: boolean;
+  accounts: PojlibAccount[];
+  currentAccountUuid: string | null;
+  busy: boolean;
+  onClose: () => void;
+  onUseAccount: (uuid: string) => void;
+  onAddAccount: () => void;
+}) {
+  return (
+    <Modal transparent visible={props.visible} animationType="fade" onRequestClose={props.onClose}>
+      <Pressable style={styles.menuBackdrop} onPress={props.onClose}>
+        <Pressable style={styles.accountMenu} onPress={() => {}}>
+          <Text style={styles.menuTitle}>Accounts</Text>
+          {props.accounts.length === 0 ? (
+            <Text style={styles.muted}>No saved accounts yet.</Text>
+          ) : (
+            props.accounts.map((account) => {
+              const active = props.currentAccountUuid === account.uuid;
+              return (
+                <Pressable
+                  key={account.uuid}
+                  style={[styles.menuRow, active ? styles.menuRowActive : null]}
+                  onPress={() => props.onUseAccount(account.uuid)}
+                >
+                  <View style={styles.avatarSmall}>
+                    <Text style={styles.avatarText}>
+                      {account.username.slice(0, 1).toUpperCase()}
+                    </Text>
+                  </View>
+                  <Text style={styles.menuRowText} numberOfLines={1}>
+                    {account.username}
+                  </Text>
+                  {active ? <Text style={styles.menuCheck}>✓</Text> : null}
+                </Pressable>
+              );
+            })
+          )}
+          <PrimaryButton
+            label={props.currentAccountUuid ? 'Add Another Account' : 'Sign In'}
+            disabled={props.busy}
+            onPress={props.onAddAccount}
+          />
+        </Pressable>
+      </Pressable>
+    </Modal>
+  );
+}
+
+function LoginStatusModal(props: {
+  visible: boolean;
+  message: string;
+  busy: boolean;
+  onClose: () => void;
+}) {
+  return (
+    <Modal transparent visible={props.visible} animationType="fade" onRequestClose={props.onClose}>
+      <View style={styles.modalBackdrop}>
+        <View style={styles.loginModalCard}>
+          <Text style={styles.menuTitle}>Microsoft Login</Text>
+          <View style={styles.loginModalMessageRow}>
+            {props.busy ? (
+              <ActivityIndicator size="small" color={COLORS.accentBright} />
+            ) : null}
+            <Text style={styles.loginModalMessage}>{props.message}</Text>
+          </View>
+          <View style={styles.modalActions}>
+            <SecondaryButton label="Hide" onPress={props.onClose} />
+          </View>
+        </View>
+      </View>
+    </Modal>
+  );
+}
+
+function InstanceMenu(props: {
+  visible: boolean;
+  instances: PojlibInstance[];
+  selectedInstanceName: string;
+  onClose: () => void;
+  onSelect: (name: string) => void;
+}) {
+  return (
+    <Modal transparent visible={props.visible} animationType="fade" onRequestClose={props.onClose}>
+      <Pressable style={styles.menuBackdrop} onPress={props.onClose}>
+        <Pressable style={styles.instanceMenu} onPress={() => {}}>
+          <Text style={styles.menuTitle}>Select Installation</Text>
+          {props.instances.length === 0 ? (
+            <Text style={styles.muted}>No installations available.</Text>
+          ) : (
+            <ScrollView style={styles.menuScroll}>
+              {props.instances.map((instance) => {
+                const active = instance.instanceName === props.selectedInstanceName;
+                return (
+                  <Pressable
+                    key={instance.instanceName}
+                    style={[styles.menuRow, active ? styles.menuRowActive : null]}
+                    onPress={() => props.onSelect(instance.instanceName)}
+                  >
+                    <View style={styles.versionIcon}>
+                      <View style={styles.versionIconInner} />
+                    </View>
+                    <View style={styles.menuRowInfo}>
+                      <Text style={styles.menuRowText} numberOfLines={1}>
+                        {instance.instanceName}
+                      </Text>
+                      <Text style={styles.menuRowSub} numberOfLines={1}>
+                        {(instance.versionName ?? 'Unknown') +
+                          ' • ' +
+                          (instance.modLoader ?? 'Unknown')}
+                      </Text>
+                    </View>
+                    {active ? <Text style={styles.menuCheck}>✓</Text> : null}
+                  </Pressable>
+                );
+              })}
+            </ScrollView>
+          )}
+        </Pressable>
+      </Pressable>
+    </Modal>
+  );
+}
+
+function CreateInstanceModal(props: {
+  visible: boolean;
+  name: string;
+  version: string;
+  modLoader: PojlibModLoader;
+  supportedVersions: string[];
+  busy: boolean;
+  onChangeName: (value: string) => void;
+  onChangeVersion: (value: string) => void;
+  onChangeModLoader: (value: PojlibModLoader) => void;
+  onCancel: () => void;
+  onCreate: () => void;
+}) {
+  return (
+    <Modal
+      transparent
+      visible={props.visible}
+      animationType="fade"
+      onRequestClose={props.onCancel}
+    >
+      <View style={styles.modalBackdrop}>
+        <View style={styles.modalCard}>
+          <Text style={styles.menuTitle}>New Installation</Text>
+          <Text style={styles.fieldLabel}>Name</Text>
+          <TextInput
+            value={props.name}
+            onChangeText={props.onChangeName}
+            placeholder="My Pack"
+            placeholderTextColor={COLORS.textDim}
+            style={styles.input}
+          />
+          <Text style={styles.fieldLabel}>Version</Text>
+          <View style={styles.fieldPicker}>
             <Picker
-              selectedValue={selectedInstanceName}
-              onValueChange={(value) => setSelectedInstanceName(String(value))}
-              enabled={instances.length > 0}
+              selectedValue={props.version}
+              onValueChange={(value) => props.onChangeVersion(String(value))}
+              enabled={props.supportedVersions.length > 0}
               mode={Platform.OS === 'android' ? 'dropdown' : undefined}
               style={styles.picker}
-              dropdownIconColor="#304c3d"
+              dropdownIconColor={COLORS.accentBright}
             >
-              {instances.length === 0 ? (
-                <Picker.Item label="No installed instances" value="" />
+              {props.supportedVersions.length === 0 ? (
+                <Picker.Item label="No presets available" value="" color={COLORS.text} />
               ) : (
-                instances.map((instance) => (
+                props.supportedVersions.map((version) => (
                   <Picker.Item
-                    key={instance.instanceName}
-                    label={`${instance.instanceName} | ${instance.modLoader ?? 'Unknown loader'}`}
-                    value={instance.instanceName}
+                    key={version}
+                    label={version}
+                    value={version}
+                    color={COLORS.text}
                   />
                 ))
               )}
             </Picker>
           </View>
-          <View style={styles.browserBar}>
-            <TextInput
-              value={webUrlInput}
-              onChangeText={setWebUrlInput}
-              autoCapitalize="none"
-              autoCorrect={false}
-              placeholder="https://modrinth.com/mod/vivecraft"
-              placeholderTextColor="#7a7468"
-              style={styles.input}
-            />
-            <ActionButton
-              label="Go"
-              onPress={() => {
-                const normalized = normalizeBrowserUrl(webUrlInput);
-                setWebUrlInput(normalized);
-                setWebUrl(normalized);
-              }}
-            />
-            <ActionButton
-              label="Reload"
-              variant="secondary"
-              onPress={() => webViewRef.current?.reload()}
+          <Text style={styles.fieldLabel}>Mod Loader</Text>
+          <View style={styles.fieldPicker}>
+            <Picker
+              selectedValue={props.modLoader}
+              onValueChange={(value) => props.onChangeModLoader(value as PojlibModLoader)}
+              mode={Platform.OS === 'android' ? 'dropdown' : undefined}
+              style={styles.picker}
+              dropdownIconColor={COLORS.accentBright}
+            >
+              {POJLIB_MOD_LOADERS.map((modLoader) => (
+                <Picker.Item
+                  key={modLoader}
+                  label={modLoader}
+                  value={modLoader}
+                  color={COLORS.text}
+                />
+              ))}
+            </Picker>
+          </View>
+          <View style={styles.modalActions}>
+            <SecondaryButton label="Cancel" onPress={props.onCancel} />
+            <PrimaryButton
+              label="Create"
+              disabled={!props.name.trim() || !props.version || props.busy}
+              onPress={props.onCreate}
             />
           </View>
-          <Text style={styles.helperText}>
-            Clicking a Modrinth download button opens an app-level confirmation dialog before the
-            mod is added to the selected instance.
-          </Text>
-          {busyLabel ? <Text style={styles.label}>Busy: {busyLabel}</Text> : null}
-          {error ? <Text style={styles.error}>Error: {error}</Text> : null}
-        </View>
-
-        <View style={styles.webViewShell}>
-          <WebView
-            ref={webViewRef}
-            source={{ uri: webUrl }}
-            style={styles.webView}
-            onMessage={handleWebViewMessage}
-            onShouldStartLoadWithRequest={handleShouldStartLoad}
-            injectedJavaScriptBeforeContentLoaded={MODRINTH_INJECTED_JAVASCRIPT}
-            setSupportMultipleWindows={false}
-            javaScriptEnabled
-            domStorageEnabled
-            startInLoadingState
-          />
         </View>
       </View>
-
-      <Modal
-        transparent
-        visible={Boolean(pendingInstall)}
-        animationType="fade"
-        onRequestClose={() => setPendingInstall(null)}
-      >
-        <View style={styles.modalBackdrop}>
-          <View style={styles.modalCard}>
-            <Text style={styles.sectionTitle}>Install Mod</Text>
-            {pendingInstall ? (
-              <>
-                <Text style={styles.label}>
-                  You are about to install {pendingInstall.projectName} into{' '}
-                  {pendingInstall.instanceName}.
-                </Text>
-                <Text style={styles.helperText}>
-                  {pendingInstall.fileName ?? pendingInstall.versionLabel}
-                </Text>
-              </>
-            ) : null}
-            <View style={styles.actions}>
-              <ActionButton
-                label="Continue"
-                disabled={!!busyLabel}
-                onPress={() => {
-                  void confirmInstall();
-                }}
-              />
-              <ActionButton
-                label="Cancel"
-                variant="secondary"
-                onPress={() => setPendingInstall(null)}
-              />
-            </View>
-          </View>
-        </View>
-      </Modal>
-    </SafeAreaView>
+    </Modal>
   );
 }
 
-function ActionButton(props: {
-  label: string;
-  onPress: () => void;
-  disabled?: boolean;
-  variant?: 'primary' | 'secondary';
+function InspectModsModal(props: {
+  instance: PojlibInstance | null;
+  mods: PojlibProject[];
+  busy: boolean;
+  onClose: () => void;
+  onRemove: (project: PojlibProject) => void;
 }) {
-  const variant = props.variant ?? 'primary';
+  return (
+    <Modal
+      transparent
+      visible={Boolean(props.instance)}
+      animationType="fade"
+      onRequestClose={props.onClose}
+    >
+      <View style={styles.modalBackdrop}>
+        <View style={styles.modalCard}>
+          <Text style={styles.menuTitle}>
+            Mods{props.instance ? ` • ${props.instance.instanceName}` : ''}
+          </Text>
+          {props.mods.length === 0 ? (
+            <Text style={styles.muted}>No installed mods are registered for this instance.</Text>
+          ) : (
+            <ScrollView style={styles.menuScroll}>
+              {props.mods.map((project) => (
+                <View
+                  key={`${project.slug}-${project.version ?? 'unknown'}`}
+                  style={styles.projectRow}
+                >
+                  <View style={styles.projectTextWrap}>
+                    <Text style={styles.projectTitle} numberOfLines={1}>
+                      {formatProjectTitle(project)}
+                    </Text>
+                    <Text style={styles.projectMeta} numberOfLines={1}>
+                      {(project.version ?? 'Unknown version') +
+                        '  •  ' +
+                        (project.fileName ?? 'Legacy file name')}
+                    </Text>
+                  </View>
+                  <SecondaryButton
+                    label="Delete"
+                    disabled={props.busy}
+                    onPress={() => props.onRemove(project)}
+                  />
+                </View>
+              ))}
+            </ScrollView>
+          )}
+          <View style={styles.modalActions}>
+            <SecondaryButton label="Close" onPress={props.onClose} />
+          </View>
+        </View>
+      </View>
+    </Modal>
+  );
+}
 
+function InstallModModal(props: {
+  pending: PendingModInstall | null;
+  instances: PojlibInstance[];
+  busy: boolean;
+  onCancel: () => void;
+  onChangeInstance: (name: string) => void;
+  onConfirm: () => void;
+}) {
+  return (
+    <Modal
+      transparent
+      visible={Boolean(props.pending)}
+      animationType="fade"
+      onRequestClose={props.onCancel}
+    >
+      <View style={styles.modalBackdrop}>
+        <View style={styles.modalCard}>
+          <Text style={styles.menuTitle}>Install Mod</Text>
+          {props.pending ? (
+            <>
+              <Text style={styles.fieldLabel}>
+                You are about to install {props.pending.projectName} into{' '}
+                {props.pending.instanceName}. Do you want to continue?
+              </Text>
+              <Text style={styles.muted}>
+                {props.pending.fileName ?? props.pending.versionLabel}
+              </Text>
+              <Text style={styles.fieldLabel}>Target Instance</Text>
+              <View style={styles.fieldPicker}>
+                <Picker
+                  selectedValue={props.pending.instanceName}
+                  onValueChange={(value) => props.onChangeInstance(String(value))}
+                  enabled={props.instances.length > 0}
+                  mode={Platform.OS === 'android' ? 'dropdown' : undefined}
+                  style={styles.picker}
+                  dropdownIconColor={COLORS.accentBright}
+                >
+                  {props.instances.map((instance) => (
+                    <Picker.Item
+                      key={instance.instanceName}
+                      label={`${instance.instanceName} • ${instance.modLoader ?? 'Unknown'}`}
+                      value={instance.instanceName}
+                      color={COLORS.text}
+                    />
+                  ))}
+                </Picker>
+              </View>
+            </>
+          ) : null}
+          <View style={styles.modalActions}>
+            <SecondaryButton label="Cancel" onPress={props.onCancel} />
+            <PrimaryButton label="Install" disabled={props.busy} onPress={props.onConfirm} />
+          </View>
+        </View>
+      </View>
+    </Modal>
+  );
+}
+
+function Card(props: { children: React.ReactNode }) {
+  return <View style={styles.card}>{props.children}</View>;
+}
+
+function PrimaryButton(props: { label: string; onPress: () => void; disabled?: boolean }) {
   return (
     <Pressable
       onPress={props.onPress}
       disabled={props.disabled}
-      style={[
-        styles.button,
-        variant === 'secondary' ? styles.buttonSecondary : null,
-        props.disabled ? styles.buttonDisabled : null,
-      ]}
+      style={[styles.primaryButton, props.disabled ? styles.primaryButtonDisabled : null]}
     >
-      <Text
-        style={[
-          styles.buttonText,
-          variant === 'secondary' ? styles.buttonSecondaryText : null,
-          props.disabled ? styles.buttonDisabledText : null,
-        ]}
-      >
-        {props.label}
-      </Text>
+      <Text style={styles.primaryButtonText}>{props.label}</Text>
+    </Pressable>
+  );
+}
+
+function SecondaryButton(props: { label: string; onPress: () => void; disabled?: boolean }) {
+  return (
+    <Pressable
+      onPress={props.onPress}
+      disabled={props.disabled}
+      style={[styles.secondaryButton, props.disabled ? styles.secondaryButtonDisabled : null]}
+    >
+      <Text style={styles.secondaryButtonText}>{props.label}</Text>
     </Pressable>
   );
 }
@@ -1223,7 +1700,8 @@ function createPendingInstall(
     return null;
   }
 
-  const fileName = downloadName || decodeURIComponent(normalizedUrl.split('/').pop()?.split('?')[0] ?? '');
+  const fileName =
+    downloadName || decodeURIComponent(normalizedUrl.split('/').pop()?.split('?')[0] ?? '');
   const versionId = normalizedUrl.match(/\/versions\/([^/]+)/)?.[1] ?? null;
   const versionLabel = versionId ?? fileName ?? 'unknown-version';
   const projectName = inferProjectName(pageTitle, normalizedPageUrl, fileName);
@@ -1276,216 +1754,750 @@ function formatProjectTitle(project: PojlibProject) {
 const styles = StyleSheet.create({
   root: {
     flex: 1,
+    backgroundColor: COLORS.bg,
   },
-  container: {
+  shell: {
     flex: 1,
-    backgroundColor: '#d7e0d1',
+    backgroundColor: COLORS.bg,
   },
-  content: {
-    flexGrow: 1,
-    padding: 18,
-    gap: 14,
-  },
-  panel: {
-    backgroundColor: '#f8f2e8',
-    borderRadius: 18,
-    padding: 18,
-    borderWidth: 1,
-    borderColor: '#c6bba8',
-  },
-  header: {
-    fontSize: 28,
-    marginBottom: 14,
-    fontWeight: '700',
-    color: '#28322a',
-  },
-  sectionTitle: {
-    fontSize: 20,
-    marginBottom: 10,
-    fontWeight: '600',
-    color: '#3f3626',
-  },
-  label: {
-    fontSize: 15,
-    marginBottom: 8,
-    color: '#28322a',
-  },
-  helperText: {
-    fontSize: 13,
-    marginTop: 10,
-    color: '#6b655b',
-  },
-  muted: {
-    fontSize: 14,
-    color: '#6b655b',
-  },
-  error: {
-    marginTop: 8,
-    color: '#8d1f1f',
-    fontSize: 15,
-    fontWeight: '600',
-  },
-  actions: {
+  body: {
+    flex: 1,
     flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 10,
   },
-  quickPlayRow: {
+
+  // Sidebar
+  sidebar: {
+    width: 264,
+    backgroundColor: COLORS.sidebar,
+    paddingHorizontal: 14,
+    paddingVertical: 16,
+    borderRightWidth: 1,
+    borderRightColor: COLORS.borderSoft,
+  },
+  profile: {
     flexDirection: 'row',
+    alignItems: 'center',
     gap: 12,
-    alignItems: 'center',
+    paddingVertical: 8,
+    paddingHorizontal: 6,
+    marginBottom: 18,
   },
-  pickerShell: {
+  avatar: {
+    width: 44,
+    height: 44,
+    borderRadius: 12,
+    backgroundColor: COLORS.accent,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  avatarSmall: {
+    width: 32,
+    height: 32,
+    borderRadius: 9,
+    backgroundColor: COLORS.accent,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  avatarText: {
+    color: '#ffffff',
+    fontSize: 18,
+    fontWeight: '800',
+  },
+  profileText: {
     flex: 1,
-    minHeight: 56,
-    justifyContent: 'center',
-    borderRadius: 16,
-    borderWidth: 1,
-    borderColor: '#c6bba8',
-    backgroundColor: '#fffdf8',
-    overflow: 'hidden',
   },
-  picker: {
-    minHeight: 56,
-    color: '#28322a',
-    ...Platform.select({
-      android: {
-        height: 56,
-        paddingHorizontal: 12,
-      },
-      ios: {
-        height: 180,
-      },
-      default: {},
-    }),
+  profileName: {
+    color: COLORS.text,
+    fontSize: 15,
+    fontWeight: '700',
   },
-  button: {
-    backgroundColor: '#304c3d',
-    borderRadius: 999,
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    minWidth: 96,
+  profileSub: {
+    color: COLORS.textMuted,
+    fontSize: 12,
+    marginTop: 2,
+  },
+  chevron: {
+    color: COLORS.textMuted,
+    fontSize: 18,
+    fontWeight: '700',
+  },
+  navList: {
+    gap: 4,
+  },
+  navItem: {
+    flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'center',
+    gap: 14,
+    paddingVertical: 12,
+    paddingHorizontal: 14,
+    borderRadius: 12,
   },
-  buttonSecondary: {
-    backgroundColor: '#ebe3d2',
-    borderWidth: 1,
-    borderColor: '#c6bba8',
+  navItemActive: {
+    backgroundColor: COLORS.accentSoft,
   },
-  buttonDisabled: {
-    backgroundColor: '#a7b2a8',
-    borderColor: '#a7b2a8',
+  navGlyph: {
+    color: COLORS.textMuted,
+    fontSize: 18,
+    width: 22,
+    textAlign: 'center',
   },
-  buttonText: {
-    color: '#f7f3e9',
-    fontSize: 14,
+  navGlyphActive: {
+    color: COLORS.accentBright,
+  },
+  navLabel: {
+    color: COLORS.textMuted,
+    fontSize: 15,
     fontWeight: '600',
   },
-  buttonSecondaryText: {
-    color: '#304c3d',
+  navLabelActive: {
+    color: COLORS.text,
   },
-  buttonDisabledText: {
-    color: '#eef2ee',
+  sidebarSpacer: {
+    flex: 1,
   },
-  item: {
-    fontSize: 14,
-    marginBottom: 6,
-    color: '#2d2d2d',
+
+  // Main
+  main: {
+    flex: 1,
+    paddingHorizontal: 28,
+    paddingTop: 14,
+    paddingBottom: 18,
   },
-  instanceCard: {
-    marginBottom: 12,
-    gap: 8,
+  mainFullscreen: {
+    paddingHorizontal: 0,
+    paddingTop: 0,
+    paddingBottom: 0,
   },
-  installRow: {
+  topTabs: {
+    flexDirection: 'row',
+    gap: 28,
+    borderBottomWidth: 1,
+    borderBottomColor: COLORS.borderSoft,
+    marginBottom: 18,
+  },
+  topTab: {
+    paddingVertical: 12,
+  },
+  topTabLabel: {
+    color: COLORS.textMuted,
+    fontSize: 16,
+    fontWeight: '600',
+  },
+  topTabLabelActive: {
+    color: COLORS.text,
+    fontWeight: '700',
+  },
+  topTabUnderline: {
+    position: 'absolute',
+    left: 0,
+    right: 0,
+    bottom: -1,
+    height: 2.5,
+    borderRadius: 2,
+    backgroundColor: COLORS.accentBright,
+  },
+  routeHeader: {
+    borderBottomWidth: 1,
+    borderBottomColor: COLORS.borderSoft,
+    marginBottom: 18,
+    paddingVertical: 12,
+  },
+  routeHeaderTitle: {
+    color: COLORS.text,
+    fontSize: 18,
+    fontWeight: '700',
+  },
+  mainContent: {
+    flex: 1,
+  },
+  scrollContent: {
+    paddingBottom: 24,
+    gap: 12,
+  },
+
+  errorBanner: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
+    backgroundColor: 'rgba(248, 113, 113, 0.12)',
+    borderColor: 'rgba(248, 113, 113, 0.4)',
+    borderWidth: 1,
+    borderRadius: 12,
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+    marginBottom: 12,
+  },
+  errorBannerText: {
+    color: COLORS.danger,
+    fontSize: 14,
+    flex: 1,
+  },
+  errorBannerClose: {
+    color: COLORS.danger,
+    fontSize: 22,
+    fontWeight: '700',
+    paddingLeft: 12,
+  },
+
+  // Home / hero
+  homeWrap: {
+    flex: 1,
+  },
+  hero: {
+    flex: 1,
+    borderRadius: 20,
+    backgroundColor: COLORS.hero,
+    borderWidth: 1,
+    borderColor: COLORS.border,
+    overflow: 'hidden',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  heroGlowOne: {
+    position: 'absolute',
+    top: -80,
+    left: -40,
+    width: 320,
+    height: 320,
+    borderRadius: 160,
+    backgroundColor: COLORS.accentGlow,
+    opacity: 0.5,
+  },
+  heroGlowTwo: {
+    position: 'absolute',
+    bottom: -120,
+    right: -60,
+    width: 380,
+    height: 380,
+    borderRadius: 190,
+    backgroundColor: 'rgba(124, 58, 237, 0.25)',
+    opacity: 0.5,
+  },
+  heroContent: {
+    alignItems: 'center',
+  },
+  heroTitle: {
+    color: COLORS.text,
+    fontSize: 64,
+    fontWeight: '900',
+    letterSpacing: 6,
+    textShadowColor: COLORS.accentBright,
+    textShadowOffset: { width: 0, height: 0 },
+    textShadowRadius: 24,
+  },
+  heroTaglineRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 14,
+    marginTop: 10,
+  },
+  heroTagline: {
+    color: COLORS.textMuted,
+    fontSize: 16,
+    fontWeight: '700',
+    letterSpacing: 4,
+  },
+  heroDiamond: {
+    color: COLORS.accentBright,
+    fontSize: 12,
+  },
+
+  // Play bar
+  playBar: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 16,
+    marginTop: 18,
+  },
+  versionSelector: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
     gap: 12,
+    backgroundColor: COLORS.panel,
+    borderWidth: 1,
+    borderColor: COLORS.border,
+    borderRadius: 14,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    maxWidth: 360,
+  },
+  versionIcon: {
+    width: 42,
+    height: 42,
+    borderRadius: 10,
+    backgroundColor: COLORS.heroDeep,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1,
+    borderColor: COLORS.border,
+  },
+  versionIconInner: {
+    width: 20,
+    height: 20,
+    borderRadius: 5,
+    backgroundColor: COLORS.accent,
+  },
+  versionText: {
+    flex: 1,
+  },
+  versionTitle: {
+    color: COLORS.text,
+    fontSize: 15,
+    fontWeight: '700',
+  },
+  versionSub: {
+    color: COLORS.textMuted,
+    fontSize: 12,
+    marginTop: 2,
+  },
+  playButton: {
+    flex: 1,
+    backgroundColor: COLORS.accent,
+    borderRadius: 14,
+    paddingVertical: 18,
+    alignItems: 'center',
+    justifyContent: 'center',
+    maxWidth: 420,
+  },
+  playButtonDisabled: {
+    backgroundColor: '#3a3350',
+  },
+  playButtonText: {
+    color: '#ffffff',
+    fontSize: 20,
+    fontWeight: '800',
+    letterSpacing: 1,
+  },
+
+  // Sections / cards
+  sectionHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 4,
+  },
+  sectionTitle: {
+    color: COLORS.text,
+    fontSize: 18,
+    fontWeight: '700',
+    marginTop: 4,
+  },
+  sectionActions: {
+    flexDirection: 'row',
+    gap: 10,
+    flexWrap: 'wrap',
+    marginTop: 8,
+  },
+  card: {
+    backgroundColor: COLORS.panel,
+    borderWidth: 1,
+    borderColor: COLORS.border,
+    borderRadius: 14,
+    padding: 16,
+    gap: 8,
+  },
+  muted: {
+    color: COLORS.textMuted,
+    fontSize: 14,
+  },
+  linkText: {
+    color: COLORS.accentBright,
+    fontSize: 13,
   },
   logLine: {
+    color: COLORS.textMuted,
     fontSize: 12,
-    marginBottom: 4,
-    color: '#3d423e',
+    fontFamily: Platform.select({ ios: 'Menlo', android: 'monospace', default: 'monospace' }),
   },
-  logBlock: {
+
+  // Instances
+  instanceCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 14,
+    backgroundColor: COLORS.panel,
+    borderWidth: 1,
+    borderColor: COLORS.border,
+    borderRadius: 14,
+    padding: 14,
+  },
+  instanceCardActive: {
+    borderColor: COLORS.accent,
+    backgroundColor: COLORS.panelAlt,
+  },
+  instanceIcon: {
+    width: 48,
+    height: 48,
+    borderRadius: 12,
+    backgroundColor: COLORS.heroDeep,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1,
+    borderColor: COLORS.border,
+  },
+  instanceInfo: {
+    flex: 1,
+  },
+  instanceName: {
+    color: COLORS.text,
+    fontSize: 16,
+    fontWeight: '700',
+  },
+  instanceMeta: {
+    color: COLORS.textMuted,
     fontSize: 12,
-    color: '#3d423e',
+    marginTop: 3,
+  },
+  instanceActions: {
+    flexDirection: 'row',
+    gap: 8,
+  },
+
+  // Placeholder (skins)
+  placeholder: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 10,
+  },
+  placeholderGlyph: {
+    color: COLORS.accentBright,
+    fontSize: 36,
+  },
+  placeholderTitle: {
+    color: COLORS.text,
+    fontSize: 22,
+    fontWeight: '800',
+  },
+  placeholderText: {
+    color: COLORS.textMuted,
+    fontSize: 14,
+  },
+
+  // Download / Modrinth
+  downloadWrap: {
+    flex: 1,
+    gap: 12,
+  },
+  downloadBar: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+  },
+  downloadControlHidden: {
+    display: 'none',
+  },
+  downloadPicker: {
+    width: 220,
+    height: 48,
+    justifyContent: 'center',
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: COLORS.border,
+    backgroundColor: COLORS.panel,
+    overflow: 'hidden',
+  },
+  urlInput: {
+    flex: 1,
+    height: 48,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: COLORS.border,
+    backgroundColor: COLORS.panel,
+    paddingHorizontal: 14,
+    fontSize: 14,
+    color: COLORS.text,
+  },
+  webViewShell: {
+    flex: 1,
+    position: 'relative',
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: COLORS.border,
+    overflow: 'hidden',
+    backgroundColor: COLORS.panel,
+  },
+  webView: {
+    flex: 1,
+    backgroundColor: COLORS.panel,
+  },
+  fullscreenFab: {
+    position: 'absolute',
+    right: 18,
+    bottom: 18,
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    backgroundColor: 'rgba(15, 10, 31, 0.92)',
+    borderWidth: 1,
+    borderColor: COLORS.accent,
+    alignItems: 'center',
+    justifyContent: 'center',
+    zIndex: 10,
+    elevation: 10,
+  },
+  fullscreenFabText: {
+    color: COLORS.text,
+    fontSize: 22,
+    fontWeight: '700',
+    lineHeight: 24,
+  },
+
+  // Settings
+  accountRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+  },
+  accountName: {
+    flex: 1,
+    color: COLORS.text,
+    fontSize: 15,
+    fontWeight: '600',
+  },
+  diagnosticRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    gap: 16,
+    paddingVertical: 4,
+  },
+  diagnosticLabel: {
+    color: COLORS.textMuted,
+    fontSize: 14,
+  },
+  diagnosticValue: {
+    color: COLORS.text,
+    fontSize: 14,
+    fontWeight: '600',
+    flexShrink: 1,
+    textAlign: 'right',
+  },
+
+  // Busy pill
+  busyPill: {
+    position: 'absolute',
+    bottom: 18,
+    alignSelf: 'center',
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    backgroundColor: COLORS.panelAlt,
+    borderWidth: 1,
+    borderColor: COLORS.border,
+    borderRadius: 999,
+    paddingHorizontal: 18,
+    paddingVertical: 10,
+  },
+  busyPillText: {
+    color: COLORS.text,
+    fontSize: 13,
+    fontWeight: '600',
+  },
+
+  // Menus / modals
+  menuBackdrop: {
+    flex: 1,
+    backgroundColor: 'rgba(5, 4, 12, 0.6)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: 24,
+  },
+  accountMenu: {
+    width: '100%',
+    maxWidth: 380,
+    backgroundColor: COLORS.panel,
+    borderWidth: 1,
+    borderColor: COLORS.border,
+    borderRadius: 18,
+    padding: 16,
+    gap: 8,
+  },
+  instanceMenu: {
+    width: '100%',
+    maxWidth: 460,
+    backgroundColor: COLORS.panel,
+    borderWidth: 1,
+    borderColor: COLORS.border,
+    borderRadius: 18,
+    padding: 16,
+    gap: 8,
+  },
+  menuScroll: {
+    maxHeight: 320,
+  },
+  menuTitle: {
+    color: COLORS.text,
+    fontSize: 17,
+    fontWeight: '700',
+    marginBottom: 4,
+  },
+  menuRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    paddingVertical: 10,
+    paddingHorizontal: 10,
+    borderRadius: 12,
+  },
+  menuRowActive: {
+    backgroundColor: COLORS.accentSoft,
+  },
+  menuRowInfo: {
+    flex: 1,
+  },
+  menuRowText: {
+    flex: 1,
+    color: COLORS.text,
+    fontSize: 15,
+    fontWeight: '600',
+  },
+  menuRowSub: {
+    color: COLORS.textMuted,
+    fontSize: 12,
+    marginTop: 2,
+  },
+  menuCheck: {
+    color: COLORS.accentBright,
+    fontSize: 16,
+    fontWeight: '800',
   },
   modalBackdrop: {
     flex: 1,
-    backgroundColor: 'rgba(25, 25, 25, 0.42)',
+    backgroundColor: 'rgba(5, 4, 12, 0.6)',
     alignItems: 'center',
     justifyContent: 'center',
     padding: 24,
   },
   modalCard: {
     width: '100%',
-    maxWidth: 540,
-    backgroundColor: '#f8f2e8',
-    borderRadius: 22,
-    padding: 20,
+    maxWidth: 520,
+    backgroundColor: COLORS.panel,
     borderWidth: 1,
-    borderColor: '#c6bba8',
-    gap: 10,
+    borderColor: COLORS.border,
+    borderRadius: 18,
+    padding: 20,
+    gap: 8,
   },
-  modalList: {
-    maxHeight: 320,
+  loginModalCard: {
+    width: '100%',
+    maxWidth: 460,
+    backgroundColor: COLORS.panel,
+    borderWidth: 1,
+    borderColor: COLORS.border,
+    borderRadius: 18,
+    padding: 20,
+    gap: 12,
   },
-  modalListContent: {
+  loginModalMessageRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: 12,
+  },
+  loginModalMessage: {
+    flex: 1,
+    color: COLORS.text,
+    fontSize: 14,
+    lineHeight: 21,
+  },
+  modalActions: {
+    flexDirection: 'row',
+    justifyContent: 'flex-end',
     gap: 10,
+    marginTop: 12,
+  },
+  fieldLabel: {
+    color: COLORS.textMuted,
+    fontSize: 13,
+    fontWeight: '600',
+    marginTop: 6,
   },
   input: {
-    flex: 1,
-    borderRadius: 14,
+    borderRadius: 12,
     borderWidth: 1,
-    borderColor: '#c6bba8',
-    backgroundColor: '#fffdf8',
+    borderColor: COLORS.border,
+    backgroundColor: COLORS.heroDeep,
     paddingHorizontal: 14,
     paddingVertical: 12,
     fontSize: 15,
-    color: '#28322a',
+    color: COLORS.text,
   },
-  browserBar: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 10,
-  },
-  webViewShell: {
-    flex: 1,
-    minHeight: 540,
-    borderRadius: 18,
+  fieldPicker: {
+    borderRadius: 12,
     borderWidth: 1,
-    borderColor: '#c6bba8',
+    borderColor: COLORS.border,
+    backgroundColor: COLORS.heroDeep,
     overflow: 'hidden',
-    backgroundColor: '#f8f2e8',
+    justifyContent: 'center',
+    minHeight: 52,
   },
-  webView: {
-    flex: 1,
-    backgroundColor: '#f8f2e8',
+  picker: {
+    color: COLORS.text,
+    ...Platform.select({
+      android: { height: 52, paddingHorizontal: 8 },
+      ios: { height: 180 },
+      default: {},
+    }),
   },
   projectRow: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
     gap: 12,
-    borderRadius: 14,
+    borderRadius: 12,
     borderWidth: 1,
-    borderColor: '#d8cebd',
-    backgroundColor: '#fffdf8',
+    borderColor: COLORS.border,
+    backgroundColor: COLORS.heroDeep,
     padding: 12,
+    marginBottom: 8,
   },
   projectTextWrap: {
     flex: 1,
-    gap: 4,
+    gap: 3,
   },
   projectTitle: {
+    color: COLORS.text,
     fontSize: 15,
-    fontWeight: '600',
-    color: '#28322a',
+    fontWeight: '700',
   },
   projectMeta: {
+    color: COLORS.textMuted,
     fontSize: 12,
-    color: '#6b655b',
+  },
+
+  // Buttons
+  primaryButton: {
+    backgroundColor: COLORS.accent,
+    borderRadius: 12,
+    paddingHorizontal: 18,
+    paddingVertical: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  primaryButtonDisabled: {
+    backgroundColor: '#3a3350',
+  },
+  primaryButtonText: {
+    color: '#ffffff',
+    fontSize: 14,
+    fontWeight: '700',
+  },
+  secondaryButton: {
+    backgroundColor: 'transparent',
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: COLORS.border,
+    paddingHorizontal: 16,
+    paddingVertical: 11,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  secondaryButtonDisabled: {
+    opacity: 0.5,
+  },
+  secondaryButtonText: {
+    color: COLORS.text,
+    fontSize: 14,
+    fontWeight: '600',
   },
 });

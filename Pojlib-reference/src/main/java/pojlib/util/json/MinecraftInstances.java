@@ -8,6 +8,7 @@ import java.io.IOException;
 import java.nio.file.Files;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.LinkedHashSet;
 import java.util.List;
 
 import pojlib.account.MinecraftAccount;
@@ -89,6 +90,7 @@ public class MinecraftInstances {
             String selectedVersionId = loaderVersionId != null && !loaderVersionId.isEmpty()
                     ? loaderVersionId
                     : versionName;
+            String effectiveClasspath = normalizeClasspath(classpath);
             String[] mcArgs = {"--username", account.username, "--version", selectedVersionId, "--gameDir", gameDir,
                     "--assetsDir", assetsDir, "--assetIndex", assetIndex, "--uuid", account.uuid.replace("-", ""),
                     "--accessToken", account.accessToken, "--userType", account.userType, "--versionType", "release"};
@@ -100,7 +102,7 @@ public class MinecraftInstances {
                 }
             }
             allArgs.add("-cp");
-            allArgs.add(classpath);
+            allArgs.add(effectiveClasspath);
             allArgs.add(mainClass);
             if (gameArgs != null) {
                 for (String arg : gameArgs) {
@@ -126,9 +128,36 @@ public class MinecraftInstances {
                     : (inheritedVersionName != null ? inheritedVersionName : versionName);
             resolved = resolved.replace("${library_directory}", Constants.USER_HOME + "/libraries");
             resolved = resolved.replace("${classpath_separator}", File.pathSeparator);
-            resolved = resolved.replace("${classpath}", classpath == null ? "" : classpath);
+            resolved = resolved.replace("${classpath}", normalizeClasspath(classpath));
             resolved = resolved.replace("${version_name}", versionToken == null ? "" : versionToken);
             return resolved;
+        }
+
+        private String normalizeClasspath(String rawClasspath) {
+            if (rawClasspath == null || rawClasspath.isEmpty()) {
+                return "";
+            }
+
+            LinkedHashSet<String> entries = new LinkedHashSet<>();
+            int totalEntries = 0;
+            for (String entry : rawClasspath.split(java.util.regex.Pattern.quote(File.pathSeparator))) {
+                if (entry == null || entry.isEmpty()) {
+                    continue;
+                }
+                totalEntries++;
+                entries.add(entry);
+            }
+
+            if (entries.size() != totalEntries) {
+                Logger.getInstance().appendToLog(
+                        "Normalized classpath for " + instanceName + ": removed " +
+                                (totalEntries - entries.size()) + " duplicate entries."
+                );
+            }
+
+            String normalized = String.join(File.pathSeparator, entries);
+            classpath = normalized;
+            return normalized;
         }
 
         public ProjectInfo[] toArray() {

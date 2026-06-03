@@ -8,6 +8,7 @@ import java.io.File;
 import java.io.IOException;
 import java.io.PrintWriter;
 import java.io.StringWriter;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.FileVisitResult;
 import java.nio.file.FileVisitor;
 import java.nio.file.Files;
@@ -17,6 +18,7 @@ import java.nio.file.StandardCopyOption;
 import java.nio.file.attribute.BasicFileAttributes;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.LinkedHashSet;
 import java.util.Locale;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
@@ -201,6 +203,7 @@ public class InstanceHandler {
         CompletableFuture.supplyAsync(() ->
         {
             try {
+                ensureLoaderConfig(instance);
                 String lwjgl = PojlibRuntimeHost.installLWJGL(activity);
                 CompletableFuture<String> minecraftClasspath = Installer.installLibraries(minecraftVersionInfo, gameDir);
                 CompletableFuture<String> assetsFuture = Installer.installAssets(minecraftVersionInfo, gameDir);
@@ -227,7 +230,12 @@ public class InstanceHandler {
                     modLoaderClasspath = modLoaderClasspathFuture.get();
                 }
 
-                instance.classpath = lwjgl + File.pathSeparator + clientJarPath + File.pathSeparator + minecraftClasspath.get() + File.pathSeparator + modLoaderClasspath;
+                instance.classpath = mergeClasspathEntries(
+                        lwjgl,
+                        clientJarPath,
+                        minecraftClasspath.get(),
+                        modLoaderClasspath
+                );
                 instance.assetsDir = assetsFuture.get();
                 Installer.moveLocalAssets(activity, instance);
             } catch (Throwable e) {
@@ -267,6 +275,22 @@ public class InstanceHandler {
             }
         }
         return values.toArray(new String[0]);
+    }
+
+    private static String mergeClasspathEntries(String... segments) {
+        LinkedHashSet<String> entries = new LinkedHashSet<>();
+        for (String segment : segments) {
+            if (segment == null || segment.isEmpty()) {
+                continue;
+            }
+            for (String entry : segment.split(java.util.regex.Pattern.quote(File.pathSeparator))) {
+                if (entry == null || entry.isEmpty()) {
+                    continue;
+                }
+                entries.add(entry);
+            }
+        }
+        return String.join(File.pathSeparator, entries);
     }
 
     // Load an instance from json
@@ -428,12 +452,64 @@ public class InstanceHandler {
     public static void launchInstance(Activity activity, MinecraftAccount account, MinecraftInstances.Instance instance) {
         try {
             API.currentInstance = instance;
+            ensureLoaderConfig(instance);
             JREUtils.redirectAndPrintJRELog();
             VLoader.setAndroidInitInfo(activity);
             JREUtils.launchJavaVM(activity, instance.generateLaunchArgs(account), instance);
         } catch (Throwable e) {
             Logger.getInstance().appendThrowable("InstanceHandler: launchInstance failed.", e);
             e.printStackTrace();
+        }
+    }
+
+    private static void ensureLoaderConfig(MinecraftInstances.Instance instance) throws IOException {
+        if (instance == null || instance.modLoader == null) {
+            return;
+        }
+
+        if ("NeoForge".equalsIgnoreCase(instance.modLoader) || "Forge".equalsIgnoreCase(instance.modLoader)) {
+            ensureNeoForgeConfig(instance);
+        }
+    }
+
+    private static void ensureNeoForgeConfig(MinecraftInstances.Instance instance) throws IOException {
+        File configDir = new File(instance.gameDir, "config");
+        if (!configDir.exists()) {
+            configDir.mkdirs();
+        }
+
+        File fmlConfig = new File(configDir, "fml.toml");
+        String key = "earlyWindowControl";
+        String desiredLine = key + " = false";
+
+        if (!fmlConfig.exists()) {
+            Files.write(
+                    fmlConfig.toPath(),
+                    (desiredLine + System.lineSeparator()).getBytes(StandardCharsets.UTF_8)
+            );
+            Logger.getInstance().appendToLog(
+                    "InstanceHandler: Created NeoForge config override at " + fmlConfig.getAbsolutePath()
+            );
+            return;
+        }
+
+        String current = new String(Files.readAllBytes(fmlConfig.toPath()), StandardCharsets.UTF_8);
+        String updated;
+        if (current.matches("(?s).*^\\s*" + key + "\\s*=.*$.*")) {
+            updated = current.replaceAll("(?m)^\\s*" + key + "\\s*=.*$", desiredLine);
+        } else {
+            updated = current;
+            if (!updated.endsWith(System.lineSeparator()) && !updated.isEmpty()) {
+                updated += System.lineSeparator();
+            }
+            updated += desiredLine + System.lineSeparator();
+        }
+
+        if (!updated.equals(current)) {
+            Files.write(fmlConfig.toPath(), updated.getBytes(StandardCharsets.UTF_8));
+            Logger.getInstance().appendToLog(
+                    "InstanceHandler: Disabled NeoForge early window in " + fmlConfig.getAbsolutePath()
+            );
         }
     }
 }
