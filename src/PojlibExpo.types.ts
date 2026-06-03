@@ -16,6 +16,8 @@ export type PojlibProject = {
   downloadLink: string | null;
 };
 
+export type PojlibModLoader = 'Fabric' | 'NeoForge' | 'Quilt' | 'Forge';
+
 export type PojlibInstance = {
   instanceName: string;
   instanceImageURL: string | null;
@@ -26,6 +28,7 @@ export type PojlibInstance = {
   assetIndex: string | null;
   assetsDir: string | null;
   mainClass: string | null;
+  modLoader: PojlibModLoader | null;
   defaultMods: boolean;
   extProjects: PojlibProject[];
 };
@@ -80,21 +83,21 @@ export type CreatePojlibInstanceOptions = {
   instanceName: string;
   useDefaultMods: boolean;
   minecraftVersion: string;
-  modLoader: string;
+  modLoader: PojlibModLoader;
   imageURL?: string | null;
 };
 
 export type InstallDefaultPojlibInstanceOptions = {
   minecraftVersion: string;
   instanceName?: string | null;
-  modLoader?: string | null;
+  modLoader?: PojlibModLoader | null;
   imageURL?: string | null;
 };
 
 export type CreatePojlibMrpackInstanceOptions = {
   instanceName: string;
   imageURL?: string | null;
-  modLoader: string;
+  modLoader: PojlibModLoader;
   mrpackFile: string;
 };
 

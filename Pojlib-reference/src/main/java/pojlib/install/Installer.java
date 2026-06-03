@@ -10,6 +10,8 @@ import org.apache.commons.io.FileUtils;
 
 import pojlib.PojlibRuntimeHost;
 import pojlib.APIHandler;
+import pojlib.util.GsonUtils;
+import pojlib.util.JREUtils;
 import pojlib.util.download.DownloadManager;
 import pojlib.util.download.DownloadUtils;
 import pojlib.util.json.MinecraftInstances;
@@ -19,6 +21,11 @@ import java.io.File;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Paths;
+import java.util.Arrays;
+import java.util.HashMap;
+import java.util.ArrayList;
+import java.util.LinkedHashSet;
+import java.util.List;
 import java.util.Map;
 import java.util.StringJoiner;
 import java.util.concurrent.CompletableFuture;
@@ -106,9 +113,13 @@ public class Installer {
         return CompletableFuture.supplyAsync(() -> {
             Logger.getInstance().appendToLog("Checking Libraries for: " + versionInfo.id);
             StringJoiner classpath = new StringJoiner(File.pathSeparator);
+            LinkedHashSet<String> seenClasspathEntries = new LinkedHashSet<>();
 
             for (VersionInfo.Library library : versionInfo.libraries) {
-                if (library.name.contains("lwjgl") || (library.name.contains("org.ow2.asm")) & !versionInfo.id.contains("fabric")) {
+                if (library.name.contains("lwjgl")) {
+                    continue;
+                }
+                if (library.name.contains("org.ow2.asm") && versionInfo.inheritsFrom == null) {
                     continue;
                 }
                 for (int i = 0; i < 5; i++) {
@@ -138,7 +149,10 @@ public class Installer {
                             }
                         }
                         if (DownloadUtils.compareSHA1(libraryFile, sha1)) {
-                            classpath.add(libraryFile.getAbsolutePath());
+                            String absolutePath = libraryFile.getAbsolutePath();
+                            if (seenClasspathEntries.add(absolutePath)) {
+                                classpath.add(absolutePath);
+                            }
                             break;
                         }
                     } catch (IOException e) {
@@ -148,11 +162,89 @@ public class Installer {
             }
 
             // DNS SRV Resolver fix
-            classpath.add(Constants.USER_HOME + "/hacks/ResConfHack.jar");
+            String resConfHackPath = Constants.USER_HOME + "/hacks/ResConfHack.jar";
+            if (seenClasspathEntries.add(resConfHackPath)) {
+                classpath.add(resConfHackPath);
+            }
 
             Logger.getInstance().appendToLog("Libraries installed");
             return classpath.toString();
         });
+    }
+
+    public static VersionInfo installNeoForge(Activity activity, String gameDir, String minecraftVersion) throws IOException {
+        Logger.getInstance().appendToLog("Checking NeoForge");
+        NeoForgeMeta.NeoForgeVersion neoForgeVersion = NeoForgeMeta.getLatestVersion(minecraftVersion);
+        if (neoForgeVersion == null) {
+            throw new IOException("No NeoForge build was found for Minecraft " + minecraftVersion + ".");
+        }
+        Logger.getInstance().appendToLog(
+                "Resolved NeoForge " + neoForgeVersion.version + " for Minecraft " + minecraftVersion
+        );
+
+        File versionJson = new File(
+                gameDir + "/versions/" + neoForgeVersion.getVersionId() + "/" + neoForgeVersion.getVersionId() + ".json"
+        );
+        if (versionJson.exists()) {
+            VersionInfo installed = GsonUtils.jsonFileToObject(versionJson.getAbsolutePath(), VersionInfo.class);
+            if (installed != null) {
+                Logger.getInstance().appendToLog("NeoForge already installed: " + neoForgeVersion.version);
+                return installed;
+            }
+        }
+
+        installJVM(activity);
+
+        File installRoot = new File(gameDir);
+        installRoot.mkdirs();
+
+        File launcherProfiles = new File(installRoot, "launcher_profiles.json");
+        if (!launcherProfiles.exists()) {
+            HashMap<String, Object> launcherProfileStub = new HashMap<>();
+            launcherProfileStub.put("profiles", new HashMap<String, Object>());
+            launcherProfileStub.put("settings", new HashMap<String, Object>());
+            launcherProfileStub.put("version", 2);
+            GsonUtils.objectToJsonFile(launcherProfiles.getAbsolutePath(), launcherProfileStub);
+        }
+
+        File installerJar = new File(gameDir + "/setup/neoforge-" + neoForgeVersion.version + "-installer.jar");
+        if (!installerJar.exists()) {
+            Logger.getInstance().appendToLog("Downloading NeoForge installer: " + neoForgeVersion.version);
+            DownloadUtils.downloadFile(neoForgeVersion.getInstallerUrl(), installerJar);
+        }
+        Logger.getInstance().appendToLog("NeoForge installer jar: " + installerJar.getAbsolutePath());
+
+        Logger.getInstance().appendToLog("Installing NeoForge " + neoForgeVersion.version);
+        List<String> installerArgs = new ArrayList<>(Arrays.asList(
+                "-Djava.awt.headless=true",
+                "-Duser.home=" + installRoot.getAbsolutePath(),
+                "-jar",
+                installerJar.getAbsolutePath(),
+                "--install-client",
+                installRoot.getAbsolutePath(),
+                "--skip-hash-check"
+        ));
+        Logger.getInstance().appendToLog("NeoForge installer args: " + installerArgs);
+
+        int exitCode;
+        try {
+            exitCode = JREUtils.launchJavaTool(activity, installRoot, installerArgs);
+        } catch (Throwable t) {
+            throw new IOException("NeoForge installer failed to start in-process.", t);
+        }
+        Logger.getInstance().appendToLog("NeoForge installer exited with code " + exitCode);
+        if (exitCode != 0) {
+            throw new IOException("NeoForge installer exited with code " + exitCode + ".");
+        }
+
+        VersionInfo installed = GsonUtils.jsonFileToObject(versionJson.getAbsolutePath(), VersionInfo.class);
+        if (installed == null) {
+            throw new IOException("NeoForge installation did not produce " + versionJson.getAbsolutePath() + ".");
+        }
+        Logger.getInstance().appendToLog("NeoForge version json: " + versionJson.getAbsolutePath());
+
+        Logger.getInstance().appendToLog("NeoForge installed");
+        return installed;
     }
 
     //Only works on minecraft, not fabric, quilt, etc...

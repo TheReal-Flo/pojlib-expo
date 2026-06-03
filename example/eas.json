@@ -19,6 +19,28 @@
     },
     "apk": {
       "distribution": "internal",
+      "cache": {
+        "key": "android-gradle-v1",
+        "paths": [
+          "android/.gradle"
+        ]
+      },
+      "android": {
+        "buildType": "apk"
+      }
+    },
+    "apk-optimized": {
+      "distribution": "internal",
+      "cache": {
+        "key": "android-gradle-v1",
+        "paths": [
+          "android/.gradle"
+        ]
+      },
+      "env": {
+        "POJLIB_ENABLE_MINIFY": "true",
+        "POJLIB_ENABLE_SHRINK_RESOURCES": "true"
+      },
       "android": {
         "buildType": "apk"
       }

@@ -370,6 +370,7 @@ object PojlibBridge {
       "assetIndex" to instance.assetIndex,
       "assetsDir" to instance.assetsDir,
       "mainClass" to instance.mainClass,
+      "modLoader" to instance.modLoader,
       "defaultMods" to instance.defaultMods,
       "extProjects" to (instance.extProjects?.map(::projectToMap) ?: emptyList<Map<String, Any?>>())
     )

@@ -6,6 +6,9 @@ import com.google.common.collect.Lists;
 
 import java.io.File;
 import java.io.IOException;
+import java.io.PrintWriter;
+import java.io.StringWriter;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.FileVisitResult;
 import java.nio.file.FileVisitor;
 import java.nio.file.Files;
@@ -15,6 +18,7 @@ import java.nio.file.StandardCopyOption;
 import java.nio.file.attribute.BasicFileAttributes;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.LinkedHashSet;
 import java.util.Locale;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
@@ -26,6 +30,7 @@ import pojlib.account.MinecraftAccount;
 import pojlib.install.FabricMeta;
 import pojlib.install.Installer;
 import pojlib.install.MinecraftMeta;
+import pojlib.install.NeoForgeMeta;
 import pojlib.install.QuiltMeta;
 import pojlib.install.VersionInfo;
 import pojlib.util.Constants;
@@ -132,6 +137,7 @@ public class InstanceHandler {
         instance.instanceName = instanceName;
         instance.instanceImageURL = imageURL;
         instance.versionName = minecraftVersion;
+        instance.modLoader = modLoader;
         instance.gameDir = Constants.USER_HOME + "/instances/" + instanceName.toLowerCase(Locale.ROOT).replaceAll(" ", "_");
         instance.defaultMods = useDefaultMods;
 
@@ -141,6 +147,7 @@ public class InstanceHandler {
         }
 
         VersionInfo modLoaderVersionInfo = null;
+        boolean neoForge = false;
         switch (modLoader) {
             case "Fabric": {
                 FabricMeta.FabricVersion fabricVersion = FabricMeta.getLatestVersion();
@@ -156,16 +163,34 @@ public class InstanceHandler {
             }
             case "Forge":
             case "NeoForge": {
+                if (NeoForgeMeta.getLatestVersion(minecraftVersion) == null) {
+                    throw new IllegalArgumentException(
+                            "NeoForge is not available for Minecraft " + minecraftVersion + "."
+                    );
+                }
+                neoForge = true;
                 break;
             }
         }
 
         VersionInfo minecraftVersionInfo = MinecraftMeta.getVersionInfo(minecraftVersion);
         instance.versionType = minecraftVersionInfo.type;
-        instance.mainClass = modLoaderVersionInfo.mainClass;
+        if (modLoaderVersionInfo != null) {
+            instance.mainClass = modLoaderVersionInfo.mainClass;
+            instance.loaderVersionId = modLoaderVersionInfo.id;
+            instance.inheritedVersionName = modLoaderVersionInfo.inheritsFrom;
+            instance.jvmArgs = extractFlatArguments(modLoaderVersionInfo.arguments == null ? null : modLoaderVersionInfo.arguments.jvm);
+            instance.gameArgs = extractFlatArguments(modLoaderVersionInfo.arguments == null ? null : modLoaderVersionInfo.arguments.game);
+        } else {
+            instance.loaderVersionId = minecraftVersion;
+            instance.inheritedVersionName = minecraftVersion;
+            instance.jvmArgs = new String[0];
+            instance.gameArgs = new String[0];
+        }
 
         // Install minecraft
         VersionInfo finalModLoaderVersionInfo = modLoaderVersionInfo;
+        boolean finalNeoForge = neoForge;
 
         if(instances.instances == null) {
             instances.instances = new MinecraftInstances.Instance[0];
@@ -178,21 +203,48 @@ public class InstanceHandler {
         CompletableFuture.supplyAsync(() ->
         {
             try {
-                CompletableFuture<String> clientClasspath = Installer.installClient(minecraftVersionInfo, gameDir);
-                CompletableFuture<String> minecraftClasspath = Installer.installLibraries(minecraftVersionInfo, gameDir);
-                CompletableFuture<String> modLoaderClasspath = Installer.installLibraries(finalModLoaderVersionInfo, gameDir);
-                CompletableFuture<String> assetsFuture = Installer.installAssets(minecraftVersionInfo, gameDir);
+                ensureLoaderConfig(instance);
                 String lwjgl = PojlibRuntimeHost.installLWJGL(activity);
+                CompletableFuture<String> minecraftClasspath = Installer.installLibraries(minecraftVersionInfo, gameDir);
+                CompletableFuture<String> assetsFuture = Installer.installAssets(minecraftVersionInfo, gameDir);
 
-                CompletableFuture<Void> installFuture = CompletableFuture.allOf(clientClasspath, minecraftClasspath, modLoaderClasspath, assetsFuture);
-                installFuture.get();
+                String clientJarPath;
+                String modLoaderClasspath;
+                if (finalNeoForge) {
+                    CompletableFuture<String> clientClasspath = Installer.installClient(minecraftVersionInfo, gameDir);
+                    VersionInfo installedNeoForge = Installer.installNeoForge(activity, gameDir, minecraftVersion);
+                    instance.mainClass = installedNeoForge.mainClass;
+                    instance.loaderVersionId = installedNeoForge.id;
+                    instance.inheritedVersionName = installedNeoForge.inheritsFrom;
+                    instance.jvmArgs = extractFlatArguments(installedNeoForge.arguments == null ? null : installedNeoForge.arguments.jvm);
+                    instance.gameArgs = extractFlatArguments(installedNeoForge.arguments == null ? null : installedNeoForge.arguments.game);
+                    modLoaderClasspath = Installer.installLibraries(installedNeoForge, gameDir).get();
+                    String inheritedVersion = installedNeoForge.inheritsFrom != null ? installedNeoForge.inheritsFrom : minecraftVersion;
+                    clientJarPath = clientClasspath.get();
+                } else {
+                    CompletableFuture<String> clientClasspath = Installer.installClient(minecraftVersionInfo, gameDir);
+                    CompletableFuture<String> modLoaderClasspathFuture = Installer.installLibraries(finalModLoaderVersionInfo, gameDir);
+                    CompletableFuture<Void> installFuture = CompletableFuture.allOf(clientClasspath, minecraftClasspath, modLoaderClasspathFuture, assetsFuture);
+                    installFuture.get();
+                    clientJarPath = clientClasspath.get();
+                    modLoaderClasspath = modLoaderClasspathFuture.get();
+                }
 
-                instance.classpath = lwjgl + File.pathSeparator + clientClasspath.get() + File.pathSeparator + minecraftClasspath.get() + File.pathSeparator + modLoaderClasspath.get();
-
+                instance.classpath = mergeClasspathEntries(
+                        lwjgl,
+                        clientJarPath,
+                        minecraftClasspath.get(),
+                        modLoaderClasspath
+                );
                 instance.assetsDir = assetsFuture.get();
                 Installer.moveLocalAssets(activity, instance);
-            } catch (IOException | ExecutionException | InterruptedException e) {
-                e.printStackTrace();
+            } catch (Throwable e) {
+                Logger.getInstance().appendToLog("Instance creation failed for " + instanceName + ": " + e);
+                StringWriter stringWriter = new StringWriter();
+                PrintWriter printWriter = new PrintWriter(stringWriter);
+                e.printStackTrace(printWriter);
+                printWriter.flush();
+                Logger.getInstance().appendToLog(stringWriter.toString());
             }
             instance.assetIndex = minecraftVersionInfo.assetIndex.id;
 
@@ -209,6 +261,36 @@ public class InstanceHandler {
         });
 
         return instance;
+    }
+
+    private static String[] extractFlatArguments(Object[] source) {
+        if (source == null || source.length == 0) {
+            return new String[0];
+        }
+
+        ArrayList<String> values = new ArrayList<>();
+        for (Object entry : source) {
+            if (entry instanceof String) {
+                values.add((String) entry);
+            }
+        }
+        return values.toArray(new String[0]);
+    }
+
+    private static String mergeClasspathEntries(String... segments) {
+        LinkedHashSet<String> entries = new LinkedHashSet<>();
+        for (String segment : segments) {
+            if (segment == null || segment.isEmpty()) {
+                continue;
+            }
+            for (String entry : segment.split(java.util.regex.Pattern.quote(File.pathSeparator))) {
+                if (entry == null || entry.isEmpty()) {
+                    continue;
+                }
+                entries.add(entry);
+            }
+        }
+        return String.join(File.pathSeparator, entries);
     }
 
     // Load an instance from json
@@ -370,12 +452,64 @@ public class InstanceHandler {
     public static void launchInstance(Activity activity, MinecraftAccount account, MinecraftInstances.Instance instance) {
         try {
             API.currentInstance = instance;
+            ensureLoaderConfig(instance);
             JREUtils.redirectAndPrintJRELog();
             VLoader.setAndroidInitInfo(activity);
             JREUtils.launchJavaVM(activity, instance.generateLaunchArgs(account), instance);
         } catch (Throwable e) {
             Logger.getInstance().appendThrowable("InstanceHandler: launchInstance failed.", e);
             e.printStackTrace();
+        }
+    }
+
+    private static void ensureLoaderConfig(MinecraftInstances.Instance instance) throws IOException {
+        if (instance == null || instance.modLoader == null) {
+            return;
+        }
+
+        if ("NeoForge".equalsIgnoreCase(instance.modLoader) || "Forge".equalsIgnoreCase(instance.modLoader)) {
+            ensureNeoForgeConfig(instance);
+        }
+    }
+
+    private static void ensureNeoForgeConfig(MinecraftInstances.Instance instance) throws IOException {
+        File configDir = new File(instance.gameDir, "config");
+        if (!configDir.exists()) {
+            configDir.mkdirs();
+        }
+
+        File fmlConfig = new File(configDir, "fml.toml");
+        String key = "earlyWindowControl";
+        String desiredLine = key + " = false";
+
+        if (!fmlConfig.exists()) {
+            Files.write(
+                    fmlConfig.toPath(),
+                    (desiredLine + System.lineSeparator()).getBytes(StandardCharsets.UTF_8)
+            );
+            Logger.getInstance().appendToLog(
+                    "InstanceHandler: Created NeoForge config override at " + fmlConfig.getAbsolutePath()
+            );
+            return;
+        }
+
+        String current = new String(Files.readAllBytes(fmlConfig.toPath()), StandardCharsets.UTF_8);
+        String updated;
+        if (current.matches("(?s).*^\\s*" + key + "\\s*=.*$.*")) {
+            updated = current.replaceAll("(?m)^\\s*" + key + "\\s*=.*$", desiredLine);
+        } else {
+            updated = current;
+            if (!updated.endsWith(System.lineSeparator()) && !updated.isEmpty()) {
+                updated += System.lineSeparator();
+            }
+            updated += desiredLine + System.lineSeparator();
+        }
+
+        if (!updated.equals(current)) {
+            Files.write(fmlConfig.toPath(), updated.getBytes(StandardCharsets.UTF_8));
+            Logger.getInstance().appendToLog(
+                    "InstanceHandler: Disabled NeoForge early window in " + fmlConfig.getAbsolutePath()
+            );
         }
     }
 }

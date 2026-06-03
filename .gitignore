@@ -47,9 +47,10 @@ android/keystores/debug.keystore
 example/ios/Pods
 
 # Ruby
+example/*.tgz
 example/vendor/
 !example/vendor/
-!example/vendor/pojlib-expo-0.1.1.tgz
+!example/vendor/*.tgz
 
 # node.js
 #
@@ -63,4 +64,8 @@ yarn-error.log
 
 # Local tooling / investigation artifacts
 .tools/
+.packtmp/
 .tmp-vivecraft/
+.tmp-*/
+.tmp-*
+neoforge-installer.jar.log
