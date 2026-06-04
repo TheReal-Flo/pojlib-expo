@@ -20,6 +20,7 @@ export type PojlibModLoader = 'Fabric' | 'NeoForge' | 'Quilt' | 'Forge';
 
 export type PojlibInstance = {
   instanceName: string;
+  // Supports either a remote URL or an absolute local file path.
   instanceImageURL: string | null;
   versionName: string | null;
   versionType: string | null;
@@ -84,6 +85,7 @@ export type CreatePojlibInstanceOptions = {
   useDefaultMods: boolean;
   minecraftVersion: string;
   modLoader: PojlibModLoader;
+  // Supports either a remote URL or an absolute local file path.
   imageURL?: string | null;
 };
 
@@ -91,11 +93,13 @@ export type InstallDefaultPojlibInstanceOptions = {
   minecraftVersion: string;
   instanceName?: string | null;
   modLoader?: PojlibModLoader | null;
+  // Supports either a remote URL or an absolute local file path.
   imageURL?: string | null;
 };
 
 export type CreatePojlibMrpackInstanceOptions = {
   instanceName: string;
+  // Supports either a remote URL or an absolute local file path.
   imageURL?: string | null;
   modLoader: PojlibModLoader;
   mrpackFile: string;

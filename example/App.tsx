@@ -29,6 +29,7 @@ import PojlibExpo, {
 import {
   ActivityIndicator,
   Image,
+  type ImageSourcePropType,
   Modal,
   Platform,
   Pressable,
@@ -52,6 +53,8 @@ const STORAGE_LAST_INSTANCE_NAME = 'amethystxr:last-instance-name';
 const MODRINTH_DEFAULT_URL = 'https://modrinth.com/mods?g=categories:%27vr%27';
 const MODRINTH_MESSAGE_TYPE = 'modrinth-download';
 const FALLBACK_SUPPORTED_VERSIONS = ['1.21.4'];
+const FABRIC_ICON = require('./assets/instance-icons/fabric.png');
+const NEOFORGE_ICON = require('./assets/instance-icons/neoforge.png');
 
 const BRAND_NAME = 'AMETHYSTXR';
 const BRAND_TAGLINE = 'YOUR WORLD. ENHANCED.';
@@ -92,7 +95,13 @@ type PendingModInstall = {
   versionLabel: string;
   url: string;
   pageUrl: string;
+  iconUrl: string | null;
   type: string;
+};
+
+const INSTANCE_LOADER_ICONS: Partial<Record<PojlibModLoader, ImageSourcePropType>> = {
+  Fabric: FABRIC_ICON,
+  NeoForge: NEOFORGE_ICON,
 };
 
 const MODRINTH_INJECTED_JAVASCRIPT = `
@@ -163,7 +172,37 @@ const MODRINTH_INJECTED_JAVASCRIPT = `
           url: absoluteHref,
           download: anchor.getAttribute('download'),
           pageUrl: window.location.href,
-          title: document.title || ''
+          title: document.title || '',
+          imageUrl: (function () {
+            var selectors = [
+              'meta[property="og:image"]',
+              'meta[name="og:image"]',
+              'meta[name="twitter:image"]',
+              'meta[property="twitter:image"]',
+              'link[rel="apple-touch-icon"]',
+              'link[rel="icon"]'
+            ];
+
+            for (var index = 0; index < selectors.length; index += 1) {
+              var element = document.querySelector(selectors[index]);
+              if (!element) {
+                continue;
+              }
+
+              var candidate = element.getAttribute('content') || element.getAttribute('href');
+              if (!candidate) {
+                continue;
+              }
+
+              try {
+                return new URL(candidate, window.location.href).toString();
+              } catch (error) {
+                continue;
+              }
+            }
+
+            return null;
+          })()
         })
       );
     },
@@ -564,6 +603,7 @@ function Launcher() {
     download?: string | null;
     pageUrl?: string | null;
     title?: string | null;
+    imageUrl?: string | null;
   }): boolean {
     const targetInstanceName = selectedInstanceName || instances[0]?.instanceName;
     if (!targetInstanceName) {
@@ -576,7 +616,8 @@ function Launcher() {
       raw.url,
       raw.download ?? null,
       raw.pageUrl ?? webUrl,
-      raw.title ?? null
+      raw.title ?? null,
+      raw.imageUrl ?? null
     );
 
     if (!pending) {
@@ -596,6 +637,7 @@ function Launcher() {
         download?: string | null;
         pageUrl?: string | null;
         title?: string | null;
+        imageUrl?: string | null;
       };
 
       if (payload.type !== MODRINTH_MESSAGE_TYPE || !payload.url) {
@@ -607,6 +649,7 @@ function Launcher() {
         download: payload.download ?? null,
         pageUrl: payload.pageUrl ?? null,
         title: payload.title ?? null,
+        imageUrl: payload.imageUrl ?? null,
       });
     } catch {
       // Ignore malformed bridge messages from the page.
@@ -952,6 +995,32 @@ function AccountAvatar(props: {
   );
 }
 
+function InstanceLogo(props: {
+  instance: Pick<PojlibInstance, 'instanceImageURL' | 'modLoader'> | null | undefined;
+  size: number;
+}) {
+  const source = getInstanceLogoSource(props.instance);
+
+  return (
+    <View
+      style={[
+        styles.instanceLogo,
+        {
+          width: props.size,
+          height: props.size,
+          borderRadius: Math.round(props.size * 0.24),
+        },
+      ]}
+    >
+      {source ? (
+        <Image source={source} style={styles.instanceLogoImage} resizeMode="cover" />
+      ) : (
+        <View style={styles.versionIconInner} />
+      )}
+    </View>
+  );
+}
+
 function NavItem(props: {
   glyph: string;
   label: string;
@@ -1020,9 +1089,7 @@ function HomeView(props: {
 
       <View style={styles.playBar}>
         <Pressable style={styles.versionSelector} onPress={props.onOpenInstanceMenu}>
-          <View style={styles.versionIcon}>
-            <View style={styles.versionIconInner} />
-          </View>
+          <InstanceLogo instance={props.selectedInstance} size={42} />
           <View style={styles.versionText}>
             <Text style={styles.versionTitle} numberOfLines={1}>
               {instanceLabel}
@@ -1086,9 +1153,7 @@ function InstallationsView(props: {
             key={instance.instanceName}
             style={[styles.instanceCard, selected ? styles.instanceCardActive : null]}
           >
-            <View style={styles.instanceIcon}>
-              <View style={styles.versionIconInner} />
-            </View>
+            <InstanceLogo instance={instance} size={48} />
             <View style={styles.instanceInfo}>
               <Text style={styles.instanceName} numberOfLines={1}>
                 {instance.instanceName}
@@ -1449,9 +1514,7 @@ function InstanceMenu(props: {
                     style={[styles.menuRow, active ? styles.menuRowActive : null]}
                     onPress={() => props.onSelect(instance.instanceName)}
                   >
-                    <View style={styles.versionIcon}>
-                      <View style={styles.versionIconInner} />
-                    </View>
+                    <InstanceLogo instance={instance} size={42} />
                     <View style={styles.menuRowInfo}>
                       <Text style={styles.menuRowText} numberOfLines={1}>
                         {instance.instanceName}
@@ -1735,7 +1798,8 @@ function createPendingInstall(
   rawUrl: string,
   downloadName: string | null,
   pageUrl: string,
-  pageTitle: string | null
+  pageTitle: string | null,
+  imageUrl: string | null
 ): PendingModInstall | null {
   const normalizedPageUrl = normalizeBrowserUrl(pageUrl);
   const normalizedUrl = new URL(rawUrl, normalizedPageUrl).toString();
@@ -1757,8 +1821,56 @@ function createPendingInstall(
     versionLabel,
     url: normalizedUrl,
     pageUrl: normalizedPageUrl,
+    iconUrl: normalizeInstanceImageUrl(imageUrl, normalizedPageUrl),
     type: inferProjectType(normalizedPageUrl),
   };
+}
+
+function normalizeInstanceImageUrl(
+  imageUrl: string | null | undefined,
+  baseUrl?: string | null
+): string | null {
+  const trimmed = imageUrl?.trim();
+  if (!trimmed) {
+    return null;
+  }
+
+  if (/^(https?:|file:|content:|data:)/i.test(trimmed)) {
+    return trimmed;
+  }
+
+  if (/^[A-Za-z]:[\\/]/.test(trimmed)) {
+    return `file://${trimmed.replace(/\\/g, '/')}`;
+  }
+
+  if (trimmed.startsWith('/')) {
+    return baseUrl ? new URL(trimmed, baseUrl).toString() : `file://${trimmed}`;
+  }
+
+  if (baseUrl) {
+    try {
+      return new URL(trimmed, baseUrl).toString();
+    } catch {
+      return null;
+    }
+  }
+
+  return null;
+}
+
+function getInstanceLogoSource(
+  instance: Pick<PojlibInstance, 'instanceImageURL' | 'modLoader'> | null | undefined
+): ImageSourcePropType | null {
+  const customImage = normalizeInstanceImageUrl(instance?.instanceImageURL);
+  if (customImage) {
+    return { uri: customImage };
+  }
+
+  if (instance?.modLoader) {
+    return INSTANCE_LOADER_ICONS[instance.modLoader] ?? null;
+  }
+
+  return null;
 }
 
 function inferProjectName(pageTitle: string | null, pageUrl: string, fileName: string) {
@@ -2188,6 +2300,18 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     borderWidth: 1,
     borderColor: COLORS.border,
+  },
+  instanceLogo: {
+    backgroundColor: COLORS.heroDeep,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1,
+    borderColor: COLORS.border,
+    overflow: 'hidden',
+  },
+  instanceLogoImage: {
+    width: '100%',
+    height: '100%',
   },
   instanceInfo: {
     flex: 1,
