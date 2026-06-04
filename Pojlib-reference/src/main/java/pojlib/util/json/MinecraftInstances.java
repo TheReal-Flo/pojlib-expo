@@ -68,6 +68,58 @@ public class MinecraftInstances {
         }
     }
 
+    public static void RestoreManagedVivecraftMod(MinecraftInstances.Instance instance) {
+        if (instance == null || instance.gameDir == null || instance.extProjects == null) {
+            return;
+        }
+
+        for (ProjectInfo projectInfo : instance.extProjects) {
+            if (projectInfo == null || !"Vivecraft".equalsIgnoreCase(projectInfo.slug) || projectInfo.download_link == null || projectInfo.download_link.isEmpty()) {
+                continue;
+            }
+
+            boolean legacyMod = projectInfo.fileName == null || projectInfo.fileName.isEmpty();
+            File modFile = new File(
+                    instance.gameDir + "/mods",
+                    (legacyMod ? projectInfo.slug : projectInfo.fileName) + ".jar"
+            );
+
+            try {
+                Logger.getInstance().appendToLog("Restoring clean Vivecraft jar from " + projectInfo.download_link);
+                DownloadUtils.downloadFile(projectInfo.download_link, modFile, 0);
+            } catch (IOException e) {
+                Logger.getInstance().appendToLog("WARN: Failed to restore Vivecraft jar: " + e);
+            }
+
+            return;
+        }
+    }
+
+    public static void PatchInstalledVivecraftMods(MinecraftInstances.Instance instance) {
+        if (instance == null || instance.gameDir == null) {
+            return;
+        }
+
+        File modsDir = new File(instance.gameDir, "mods");
+        File[] modFiles = modsDir.listFiles();
+        if (modFiles == null || modFiles.length == 0) {
+            return;
+        }
+
+        for (File modFile : modFiles) {
+            if (modFile == null || !modFile.isFile()) {
+                continue;
+            }
+
+            String name = modFile.getName().toLowerCase();
+            if (!name.contains("vivecraft") || !name.endsWith(".jar")) {
+                continue;
+            }
+
+            VivecraftJarPatcher.patchIfNeeded(modFile);
+        }
+    }
+
     public static class Instance {
         public String instanceName;
         public String instanceImageURL;

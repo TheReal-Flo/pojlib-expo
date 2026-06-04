@@ -4,6 +4,7 @@
 
 # Pojlib relies on JNI and reflection for these exact class names.
 -keep class pojlib.API { *; }
+-keep class pojlib.APIHandler$SupportedVersions { *; }
 -keep class pojlib.PojlibRuntimeActivity { *; }
 -keep class pojlib.PojlibRuntimeHost { *; }
 -keep class pojlib.UnityPlayerActivity { *; }

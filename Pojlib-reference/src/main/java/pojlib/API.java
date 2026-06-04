@@ -202,6 +202,8 @@ public class API {
         DownloadManager.reset();
 
         MinecraftInstances.CheckVivecraftConfig(instance);
+        MinecraftInstances.RestoreManagedVivecraftMod(instance);
+        MinecraftInstances.PatchInstalledVivecraftMods(instance);
     }
 
     /**
@@ -213,6 +215,8 @@ public class API {
      *                 or {@link API#load(MinecraftInstances, String)}
      */
     public static void launchInstance(Activity activity, MinecraftAccount account, MinecraftInstances.Instance instance) {
+        MinecraftInstances.RestoreManagedVivecraftMod(instance);
+        MinecraftInstances.PatchInstalledVivecraftMods(instance);
         InstanceHandler.launchInstance(activity, account, instance);
     }
 
