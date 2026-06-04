@@ -66,6 +66,17 @@ public class API {
         InstanceHandler.addExtraProject(instances, instance, name, fileName, version, url, type);
     }
 
+    public static void importLocalProject(
+            MinecraftInstances instances,
+            MinecraftInstances.Instance instance,
+            String name,
+            String sourcePath,
+            String fileName,
+            String type
+    ) throws IOException {
+        InstanceHandler.importLocalProject(instances, instance, name, sourcePath, fileName, type);
+    }
+
     public static void addExtraProjectFromModrinthVersion(MinecraftInstances instances, MinecraftInstances.Instance instance, String versionId, String type) throws IOException {
         ModrinthMeta.ResolvedProject resolvedProject = ModrinthMeta.resolveVersion(versionId);
         InstanceHandler.addExtraProject(

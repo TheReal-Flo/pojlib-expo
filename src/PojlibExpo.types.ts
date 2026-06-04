@@ -120,6 +120,14 @@ export type AddPojlibModrinthVersionOptions = {
   type?: string | null;
 };
 
+export type ImportLocalPojlibProjectOptions = {
+  instanceName: string;
+  name: string;
+  sourcePath: string;
+  fileName?: string | null;
+  type?: string | null;
+};
+
 export type PojlibExpoModuleEvents = {
   onLog: (params: PojlibLogEventPayload) => void;
 };

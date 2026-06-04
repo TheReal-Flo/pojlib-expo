@@ -7,6 +7,7 @@ import PojlibExpoModule, {
   AddPojlibModrinthVersionOptions,
   CreatePojlibInstanceOptions,
   CreatePojlibMrpackInstanceOptions,
+  ImportLocalPojlibProjectOptions,
   InstallDefaultPojlibInstanceOptions,
   PojlibModLoader,
   PojlibConfig,
@@ -153,6 +154,16 @@ export function addPojlibModrinthVersion(options: AddPojlibModrinthVersionOption
   return PojlibExpoModule.addModrinthVersionProject(
     options.instanceName,
     options.versionId,
+    options.type ?? 'mod'
+  );
+}
+
+export function importPojlibLocalProject(options: ImportLocalPojlibProjectOptions) {
+  return PojlibExpoModule.importLocalProject(
+    options.instanceName,
+    options.name,
+    options.sourcePath,
+    options.fileName ?? null,
     options.type ?? 'mod'
   );
 }

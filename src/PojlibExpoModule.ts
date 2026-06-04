@@ -5,6 +5,7 @@ import type {
   AddPojlibModrinthVersionOptions,
   CreatePojlibInstanceOptions,
   CreatePojlibMrpackInstanceOptions,
+  ImportLocalPojlibProjectOptions,
   InstallDefaultPojlibInstanceOptions,
   PojlibModLoader,
   PojlibAccount,
@@ -63,6 +64,13 @@ declare class PojlibExpoModule extends NativeModule<PojlibExpoModuleEvents> {
     versionId: string,
     type: string | null
   ): Promise<PojlibInstance>;
+  importLocalProject(
+    instanceName: string,
+    name: string,
+    sourcePath: string,
+    fileName: string | null,
+    type: string | null
+  ): Promise<PojlibInstance>;
   hasExtraProject(instanceName: string, name: string): Promise<boolean>;
   removeExtraProject(instanceName: string, name: string): Promise<boolean>;
   prelaunch(instanceName: string): Promise<PojlibStatus>;
@@ -77,6 +85,7 @@ export type {
   AddPojlibModrinthVersionOptions,
   CreatePojlibInstanceOptions,
   CreatePojlibMrpackInstanceOptions,
+  ImportLocalPojlibProjectOptions,
   InstallDefaultPojlibInstanceOptions,
   PojlibModLoader,
   PojlibConfig,

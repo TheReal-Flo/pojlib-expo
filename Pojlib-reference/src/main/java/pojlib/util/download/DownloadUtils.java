@@ -9,9 +9,12 @@ import pojlib.util.Logger;
 
 import javax.net.ssl.SSLException;
 import java.io.*;
+import java.net.URI;
 import java.net.HttpURLConnection;
 import java.net.URL;
 import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.StandardCopyOption;
 import java.util.Objects;
 import javax.annotation.Nullable;
 
@@ -52,6 +55,10 @@ public class DownloadUtils {
 
     public static void downloadFile(String url, File out, long size) throws IOException {
         Objects.requireNonNull(out.getParentFile()).mkdirs();
+        if (isLocalSource(url)) {
+            copyLocalSource(url, out);
+            return;
+        }
         File tempOut = File.createTempFile(out.getName(), ".part", out.getParentFile());
         try {
             try (OutputStream bos2 = new BufferedOutputStream(Files.newOutputStream(tempOut.toPath()))) {
@@ -67,6 +74,35 @@ public class DownloadUtils {
             if (tempOut.exists()) tempOut.delete();
             throw e;
         }
+    }
+
+    private static boolean isLocalSource(String url) {
+        return url.startsWith("file:/") || url.startsWith("/");
+    }
+
+    private static void copyLocalSource(String source, File out) throws IOException {
+        Path sourcePath = resolveLocalSourcePath(source);
+        if (!Files.exists(sourcePath)) {
+            throw new FileNotFoundException("Local source not found: " + source);
+        }
+
+        File tempOut = File.createTempFile(out.getName(), ".part", out.getParentFile());
+        try {
+            Files.copy(sourcePath, tempOut.toPath(), StandardCopyOption.REPLACE_EXISTING);
+            Files.move(tempOut.toPath(), out.toPath(), StandardCopyOption.REPLACE_EXISTING);
+        } finally {
+            if (tempOut.exists()) {
+                tempOut.delete();
+            }
+        }
+    }
+
+    private static Path resolveLocalSourcePath(String source) {
+        if (source.startsWith("file:/")) {
+            return Path.of(URI.create(source));
+        }
+
+        return Path.of(source);
     }
 
     public static boolean compareSHA1(File f, @Nullable String sourceSHA) {

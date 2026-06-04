@@ -20,6 +20,7 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.LinkedHashSet;
 import java.util.Locale;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
@@ -351,6 +352,48 @@ public class InstanceHandler {
         GsonUtils.objectToJsonFile(Constants.USER_HOME + "/instances.json", instances);
     }
 
+    public static void importLocalProject(
+            MinecraftInstances instances,
+            MinecraftInstances.Instance instance,
+            String name,
+            String sourcePath,
+            String fileName,
+            String type
+    ) throws IOException {
+        if (instance == null || instance.gameDir == null) {
+            throw new IOException("Instance game directory is not available.");
+        }
+
+        boolean resourcePack = "resourcepack".equals(type);
+        String extension = resourcePack ? ".zip" : ".jar";
+        String preferredName = (fileName == null || fileName.trim().isEmpty()) ? name : fileName.trim();
+        String baseName = stripKnownExtension(preferredName, extension);
+        if (baseName.isEmpty()) {
+            throw new IOException("Local project file name is empty.");
+        }
+
+        String slug = (name == null || name.trim().isEmpty()) ? baseName : name.trim();
+        File managedSource = new File(instance.gameDir + "/.pojlib-imports/" + baseName + extension);
+        pojlib.util.download.DownloadUtils.downloadFile(sourcePath, managedSource, 0);
+
+        File targetFile = new File(
+                instance.gameDir + (resourcePack ? "/resourcepacks/" : "/mods/"),
+                baseName + extension
+        );
+        Objects.requireNonNull(targetFile.getParentFile()).mkdirs();
+        Files.copy(managedSource.toPath(), targetFile.toPath(), StandardCopyOption.REPLACE_EXISTING);
+
+        addExtraProject(
+                instances,
+                instance,
+                slug,
+                baseName,
+                "local",
+                managedSource.toURI().toString(),
+                type
+        );
+    }
+
     private static File resolveProjectFile(MinecraftInstances.Instance instance, ProjectInfo info) {
         if (instance == null || info == null || info.slug == null || info.type == null) {
             return null;
@@ -362,6 +405,18 @@ public class InstanceHandler {
         String fileName = legacyMod ? info.slug : info.fileName;
         String extension = resourcePack ? ".zip" : ".jar";
         return new File(instance.gameDir + folder + fileName + extension);
+    }
+
+    private static String stripKnownExtension(String value, String extension) {
+        if (value == null) {
+            return "";
+        }
+
+        if (value.toLowerCase(Locale.ROOT).endsWith(extension)) {
+            return value.substring(0, value.length() - extension.length());
+        }
+
+        return value;
     }
 
     public static boolean hasExtraProject(MinecraftInstances.Instance instance, String name) {

@@ -247,6 +247,21 @@ object PojlibBridge {
     return instanceToMap(instance)
   }
 
+  fun importLocalProject(
+    activity: Activity,
+    instanceName: String,
+    name: String,
+    sourcePath: String,
+    fileName: String?,
+    type: String
+  ): Map<String, Any?> {
+    initialize(activity)
+    val instances = loadInstancesModel()
+    val instance = requireInstance(loadInstanceModel(instances, instanceName), instanceName)
+    API.importLocalProject(instances, instance, name, sourcePath, fileName, type)
+    return instanceToMap(instance)
+  }
+
   fun hasExtraProject(activity: Activity, instanceName: String, name: String): Boolean {
     initialize(activity)
     val instances = loadInstancesModel()

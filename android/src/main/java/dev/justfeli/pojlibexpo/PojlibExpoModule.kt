@@ -236,6 +236,29 @@ class PojlibExpoModule : Module() {
       )
     }
 
+    AsyncFunction("importLocalProject") {
+      instanceName: String,
+      name: String,
+      sourcePath: String,
+      fileName: String?,
+      type: String? ->
+
+      val activity = requireNotNull(appContext.currentActivity) {
+        "An Android activity is required to import a local Pojlib project."
+      }
+
+      PojlibBridge.initialize(activity)
+      attachLogListener()
+      PojlibBridge.importLocalProject(
+        activity,
+        instanceName,
+        name,
+        sourcePath,
+        fileName,
+        type ?: "mod"
+      )
+    }
+
     AsyncFunction("hasExtraProject") { instanceName: String, name: String ->
       val activity = requireNotNull(appContext.currentActivity) {
         "An Android activity is required to check a Pojlib project."

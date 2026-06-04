@@ -1,5 +1,6 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Picker } from '@react-native-picker/picker';
+import * as DocumentPicker from 'expo-document-picker';
 import { useEvent } from 'expo';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import PojlibExpo, {
@@ -9,6 +10,7 @@ import PojlibExpo, {
   getPojlibGitBranch,
   getPojlibStatus,
   getPojlibSupportedVersions,
+  importPojlibLocalProject,
   initializePojlib,
   installDefaultPojlibInstance,
   isPojlibBridgeAvailable,
@@ -88,6 +90,7 @@ const HOME_TABS: { key: LauncherView; label: string }[] = [
 ];
 
 type PendingModInstall = {
+  sourceKind: 'remote' | 'local';
   instanceName: string;
   projectName: string;
   fileName: string | null;
@@ -678,7 +681,15 @@ function Launcher() {
     }
 
     await runAction(`Installing ${pendingInstall.projectName}`, async () => {
-      if (pendingInstall.versionId) {
+      if (pendingInstall.sourceKind === 'local') {
+        await importPojlibLocalProject({
+          instanceName: pendingInstall.instanceName,
+          name: pendingInstall.projectName,
+          sourcePath: pendingInstall.url,
+          fileName: pendingInstall.fileName,
+          type: pendingInstall.type,
+        });
+      } else if (pendingInstall.versionId) {
         await addPojlibModrinthVersion({
           instanceName: pendingInstall.instanceName,
           versionId: pendingInstall.versionId,
@@ -698,6 +709,46 @@ function Launcher() {
       await refreshInstancesOnly();
       setPendingInstall(null);
     });
+  }
+
+  async function pickLocalProject() {
+    if (instances.length === 0) {
+      setError('Install at least one instance before uploading a mod.');
+      return;
+    }
+
+    const result = await DocumentPicker.getDocumentAsync({
+      copyToCacheDirectory: true,
+      multiple: false,
+      type: [
+        'application/java-archive',
+        'application/zip',
+        'application/octet-stream',
+      ],
+    });
+
+    if (result.canceled || result.assets.length === 0) {
+      return;
+    }
+
+    const asset = result.assets[0];
+    const fileName = asset.name?.trim() || 'uploaded-mod.jar';
+    const normalizedType = fileName.toLowerCase().endsWith('.zip') ? 'resourcepack' : 'mod';
+    const projectName = fileName.replace(/\.(jar|zip)$/i, '') || 'uploaded-project';
+
+    setPendingInstall({
+      sourceKind: 'local',
+      instanceName: selectedInstanceName || instances[0].instanceName,
+      projectName,
+      fileName,
+      versionId: null,
+      versionLabel: 'local-file',
+      url: asset.uri,
+      pageUrl: asset.uri,
+      iconUrl: null,
+      type: normalizedType,
+    });
+    setError(null);
   }
 
   const isHomeRoute = activeView === 'home' || activeView === 'installations' ||
@@ -810,8 +861,10 @@ function Launcher() {
                 canGoBack={webCanGoBack}
                 canGoForward={webCanGoForward}
                 isFullscreen={webViewFullscreen}
+                busy={Boolean(busyLabel)}
                 onGoBack={() => webViewRef.current?.goBack()}
                 onGoForward={() => webViewRef.current?.goForward()}
+                onUploadFile={() => void pickLocalProject()}
                 onToggleFullscreen={() => setWebViewFullscreen((current) => !current)}
                 onMessage={handleWebViewMessage}
                 onShouldStartLoad={handleShouldStartLoad}
@@ -1262,8 +1315,10 @@ function DownloadView(props: {
   canGoBack: boolean;
   canGoForward: boolean;
   isFullscreen: boolean;
+  busy: boolean;
   onGoBack: () => void;
   onGoForward: () => void;
+  onUploadFile: () => void;
   onToggleFullscreen: () => void;
   instances?: PojlibInstance[];
   selectedInstanceName?: string;
@@ -1284,6 +1339,11 @@ function DownloadView(props: {
           label="Forward"
           disabled={!props.canGoForward}
           onPress={props.onGoForward}
+        />
+        <SecondaryButton
+          label="Upload File"
+          disabled={props.busy}
+          onPress={props.onUploadFile}
         />
         <View style={[styles.downloadPicker, styles.downloadControlHidden]}>
           <Picker
@@ -1698,12 +1758,15 @@ function InstallModModal(props: {
     >
       <View style={styles.modalBackdrop}>
         <View style={styles.modalCard}>
-          <Text style={styles.menuTitle}>Install Mod</Text>
+          <Text style={styles.menuTitle}>
+            {props.pending?.sourceKind === 'local' ? 'Import File' : 'Install Mod'}
+          </Text>
           {props.pending ? (
             <>
               <Text style={styles.fieldLabel}>
-                You are about to install {props.pending.projectName} into{' '}
-                {props.pending.instanceName}. Do you want to continue?
+                You are about to {props.pending.sourceKind === 'local' ? 'import' : 'install'}{' '}
+                {props.pending.projectName} into {props.pending.instanceName}. Do you want to
+                continue?
               </Text>
               <Text style={styles.muted}>
                 {props.pending.fileName ?? props.pending.versionLabel}
@@ -1732,7 +1795,11 @@ function InstallModModal(props: {
           ) : null}
           <View style={styles.modalActions}>
             <SecondaryButton label="Cancel" onPress={props.onCancel} />
-            <PrimaryButton label="Install" disabled={props.busy} onPress={props.onConfirm} />
+            <PrimaryButton
+              label={props.pending?.sourceKind === 'local' ? 'Import' : 'Install'}
+              disabled={props.busy}
+              onPress={props.onConfirm}
+            />
           </View>
         </View>
       </View>
@@ -1814,6 +1881,7 @@ function createPendingInstall(
   const projectName = inferProjectName(pageTitle, normalizedPageUrl, fileName);
 
   return {
+    sourceKind: 'remote',
     instanceName,
     projectName,
     fileName: fileName || null,
