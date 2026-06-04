@@ -4,6 +4,16 @@
   "description": "A bridge between Pojlib and Expo",
   "main": "build/index.js",
   "types": "build/index.d.ts",
+  "files": [
+    "README.md",
+    "build",
+    "src",
+    "android",
+    "ios",
+    "scripts",
+    "expo-module.config.json",
+    "tsconfig.json"
+  ],
   "scripts": {
     "build": "expo-module build",
     "sync:pojlib-aar": "powershell -ExecutionPolicy Bypass -File .\\scripts\\sync-pojlib-aar.ps1",

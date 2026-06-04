@@ -28,6 +28,7 @@ import PojlibExpo, {
 } from 'pojlib-expo';
 import {
   ActivityIndicator,
+  Image,
   Modal,
   Platform,
   Pressable,
@@ -50,6 +51,7 @@ const STORAGE_LAST_ACCOUNT_UUID = 'pojlib-expo-example:last-account-uuid';
 const STORAGE_LAST_INSTANCE_NAME = 'pojlib-expo-example:last-instance-name';
 const MODRINTH_DEFAULT_URL = 'https://modrinth.com/mods?g=categories:%27vr%27';
 const MODRINTH_MESSAGE_TYPE = 'modrinth-download';
+const FALLBACK_SUPPORTED_VERSIONS = ['1.21.4'];
 
 const BRAND_NAME = 'AMETHYSTXR';
 const BRAND_TAGLINE = 'YOUR WORLD. ENHANCED.';
@@ -235,6 +237,8 @@ function Launcher() {
   const currentAccountUuid = status?.currentAccount?.uuid ?? null;
   const accountName = status?.currentAccount?.username ?? status?.profileName ?? null;
   const canPlay = Boolean(currentAccountUuid && selectedInstanceName && !busyLabel);
+  const availableSupportedVersions =
+    supportedVersions.length > 0 ? supportedVersions : FALLBACK_SUPPORTED_VERSIONS;
   const loginBusy =
     busyLabel === 'Starting login' ||
     busyLabel === 'Selecting account' ||
@@ -350,10 +354,10 @@ function Launcher() {
   }, [currentAccountUuid, loginModalVisible]);
 
   useEffect(() => {
-    if (supportedVersions.length > 0 && !newInstanceVersion) {
-      setNewInstanceVersion(supportedVersions[0]);
+    if (availableSupportedVersions.length > 0 && !newInstanceVersion) {
+      setNewInstanceVersion(availableSupportedVersions[0]);
     }
-  }, [newInstanceVersion, supportedVersions]);
+  }, [availableSupportedVersions, newInstanceVersion]);
 
   useEffect(() => {
     if (instances.length === 0) {
@@ -436,17 +440,29 @@ function Launcher() {
   }
 
   async function refreshAll() {
-    const [nextStatus, nextAccounts, nextInstances, nextVersions, nextLog, nextPreviousLog] =
-      await Promise.all([
-        getPojlibStatus(),
-        listPojlibAccounts(),
-        loadPojlibInstances(),
-        getPojlibSupportedVersions(),
-        readPojlibLatestLog(),
-        readPojlibPreviousLog(),
-      ]);
+    const results = await Promise.allSettled([
+      getPojlibStatus(),
+      listPojlibAccounts(),
+      loadPojlibInstances(),
+      getPojlibSupportedVersions(),
+      readPojlibLatestLog(),
+      readPojlibPreviousLog(),
+    ] as const);
 
-    setStatus(nextStatus);
+    const nextStatus = results[0].status === 'fulfilled' ? results[0].value : status;
+    const nextAccounts = results[1].status === 'fulfilled' ? results[1].value : accounts;
+    const nextInstances = results[2].status === 'fulfilled' ? results[2].value : instances;
+    const nextVersions =
+      results[3].status === 'fulfilled'
+        ? normalizeSupportedVersions(results[3].value)
+        : normalizeSupportedVersions(supportedVersions);
+    const nextLog = results[4].status === 'fulfilled' ? results[4].value : latestLog;
+    const nextPreviousLog =
+      results[5].status === 'fulfilled' ? results[5].value : previousLog;
+
+    if (nextStatus) {
+      setStatus(nextStatus);
+    }
     setAccounts(nextAccounts);
     setInstances(nextInstances);
     setSupportedVersions(nextVersions);
@@ -650,7 +666,7 @@ function Launcher() {
         {!webViewFullscreen ? (
           <Sidebar
             activeView={activeView}
-            accountName={accountName}
+            account={status?.currentAccount ?? null}
             loggedIn={Boolean(currentAccountUuid)}
             onNavigate={setActiveView}
             onOpenAccountMenu={() => setAccountMenuVisible(true)}
@@ -703,7 +719,7 @@ function Launcher() {
                 onSelect={setSelectedInstanceName}
                 onInspect={setInspectedInstanceName}
                 onCreate={() => {
-                  setNewInstanceVersion(supportedVersions[0] ?? '');
+                  setNewInstanceVersion(availableSupportedVersions[0] ?? '');
                   setNewInstanceModLoader('Fabric');
                   setCreateModalVisible(true);
                 }}
@@ -822,7 +838,7 @@ function Launcher() {
         name={newInstanceName}
         version={newInstanceVersion}
         modLoader={newInstanceModLoader}
-        supportedVersions={supportedVersions}
+        supportedVersions={availableSupportedVersions}
         busy={Boolean(busyLabel)}
         onChangeName={setNewInstanceName}
         onChangeVersion={setNewInstanceVersion}
@@ -864,7 +880,7 @@ function Launcher() {
 
 function Sidebar(props: {
   activeView: LauncherView;
-  accountName: string | null;
+  account: PojlibAccount | null;
   loggedIn: boolean;
   onNavigate: (view: LauncherView) => void;
   onOpenAccountMenu: () => void;
@@ -878,14 +894,10 @@ function Sidebar(props: {
   return (
     <View style={styles.sidebar}>
       <Pressable style={styles.profile} onPress={props.onOpenAccountMenu}>
-        <View style={styles.avatar}>
-          <Text style={styles.avatarText}>
-            {(props.accountName ?? 'S').slice(0, 1).toUpperCase()}
-          </Text>
-        </View>
+        <AccountAvatar name={props.account?.username ?? 'S'} skinFaceUrl={props.account?.skinFaceUrl} />
         <View style={styles.profileText}>
           <Text style={styles.profileName} numberOfLines={1}>
-            {props.accountName ?? 'Add account'}
+            {props.account?.username ?? 'Add account'}
           </Text>
           <Text style={styles.profileSub} numberOfLines={1}>
             {props.loggedIn ? 'Minecraft account' : 'Not signed in'}
@@ -917,6 +929,25 @@ function Sidebar(props: {
         active={props.activeView === 'settings'}
         onPress={() => props.onNavigate('settings')}
       />
+    </View>
+  );
+}
+
+function AccountAvatar(props: {
+  name: string | null | undefined;
+  skinFaceUrl?: string | null;
+  small?: boolean;
+}) {
+  const containerStyle = props.small ? styles.avatarSmall : styles.avatar;
+  const imageStyle = props.small ? styles.avatarSmallImage : styles.avatarImage;
+
+  return (
+    <View style={containerStyle}>
+      {props.skinFaceUrl ? (
+        <Image source={{ uri: props.skinFaceUrl }} style={imageStyle} />
+      ) : (
+        <Text style={styles.avatarText}>{(props.name ?? 'S').slice(0, 1).toUpperCase()}</Text>
+      )}
     </View>
   );
 }
@@ -1266,11 +1297,11 @@ function SettingsView(props: {
             const active = props.currentAccountUuid === account.uuid;
             return (
               <View key={account.uuid} style={styles.accountRow}>
-                <View style={styles.avatarSmall}>
-                  <Text style={styles.avatarText}>
-                    {account.username.slice(0, 1).toUpperCase()}
-                  </Text>
-                </View>
+                <AccountAvatar
+                  name={account.username}
+                  skinFaceUrl={account.skinFaceUrl}
+                  small
+                />
                 <Text style={styles.accountName} numberOfLines={1}>
                   {account.username}
                   {active ? '  •  Active' : ''}
@@ -1344,11 +1375,11 @@ function AccountMenu(props: {
                   style={[styles.menuRow, active ? styles.menuRowActive : null]}
                   onPress={() => props.onUseAccount(account.uuid)}
                 >
-                  <View style={styles.avatarSmall}>
-                    <Text style={styles.avatarText}>
-                      {account.username.slice(0, 1).toUpperCase()}
-                    </Text>
-                  </View>
+                  <AccountAvatar
+                    name={account.username}
+                    skinFaceUrl={account.skinFaceUrl}
+                    small
+                  />
                   <Text style={styles.menuRowText} numberOfLines={1}>
                     {account.username}
                   </Text>
@@ -1687,6 +1718,18 @@ function normalizeBrowserUrl(value: string) {
   return `https://${trimmed}`;
 }
 
+function normalizeSupportedVersions(versions: string[] | null | undefined) {
+  if (!Array.isArray(versions)) {
+    return [...FALLBACK_SUPPORTED_VERSIONS];
+  }
+
+  const normalized = versions
+    .map((value) => value?.trim())
+    .filter((value): value is string => Boolean(value));
+
+  return normalized.length > 0 ? Array.from(new Set(normalized)) : [...FALLBACK_SUPPORTED_VERSIONS];
+}
+
 function createPendingInstall(
   instanceName: string,
   rawUrl: string,
@@ -1802,6 +1845,16 @@ const styles = StyleSheet.create({
     color: '#ffffff',
     fontSize: 18,
     fontWeight: '800',
+  },
+  avatarImage: {
+    width: '100%',
+    height: '100%',
+    borderRadius: 12,
+  },
+  avatarSmallImage: {
+    width: '100%',
+    height: '100%',
+    borderRadius: 9,
   },
   profileText: {
     flex: 1,

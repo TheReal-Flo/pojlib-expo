@@ -31,6 +31,7 @@ project.xcworkspace
 .classpath
 .cxx
 .gradle
+.gradle-*/
 .gradle-jdk17/
 .gradle-jdk17-pojlib/
 .gradle-jdk21-pojlib/
@@ -68,4 +69,5 @@ yarn-error.log
 .tmp-vivecraft/
 .tmp-*/
 .tmp-*
+META-INF/
 neoforge-installer.jar.log

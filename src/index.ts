@@ -14,6 +14,7 @@ import PojlibExpoModule, {
 
 export const POJLIB_MOD_LOADERS: PojlibModLoader[] = ['Fabric', 'NeoForge'];
 export const DEFAULT_POJLIB_MOD_LOADER: PojlibModLoader = 'Fabric';
+const FALLBACK_SUPPORTED_VERSIONS = ['1.21.4'];
 
 export function getDefaultPojlibInstanceName(
   minecraftVersion: string,
@@ -56,6 +57,18 @@ export function getPojlibSupportedVersions() {
   return PojlibExpoModule.getSupportedVersions();
 }
 
+function normalizeSupportedVersions(versions: string[] | null | undefined): string[] {
+  if (!Array.isArray(versions)) {
+    return [...FALLBACK_SUPPORTED_VERSIONS];
+  }
+
+  const normalized = versions
+    .map((value) => value?.trim())
+    .filter((value): value is string => Boolean(value));
+
+  return normalized.length > 0 ? Array.from(new Set(normalized)) : [...FALLBACK_SUPPORTED_VERSIONS];
+}
+
 export function hasPojlibConnection() {
   return PojlibExpoModule.hasConnection();
 }
@@ -91,7 +104,7 @@ export function createPojlibInstance(options: CreatePojlibInstanceOptions) {
 }
 
 export async function installDefaultPojlibInstance(options: InstallDefaultPojlibInstanceOptions) {
-  const supportedVersions = await getPojlibSupportedVersions();
+  const supportedVersions = normalizeSupportedVersions(await getPojlibSupportedVersions());
 
   if (!supportedVersions.includes(options.minecraftVersion)) {
     throw new Error(

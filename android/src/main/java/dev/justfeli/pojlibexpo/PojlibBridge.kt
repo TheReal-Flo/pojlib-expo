@@ -8,17 +8,23 @@ import android.content.Intent
 import android.hardware.display.DisplayManager
 import org.lwjgl.glfw.CallbackBridge
 import pojlib.API
+import pojlib.APIHandler
 import pojlib.PojlibRuntimeHost
 import pojlib.account.MinecraftAccount
 import pojlib.util.Constants
 import pojlib.util.FileUtil
 import pojlib.util.GsonUtils
 import pojlib.util.Logger
+import pojlib.util.download.DownloadManager
+import pojlib.util.download.DownloadUtils
 import pojlib.util.json.MinecraftInstances
 import pojlib.util.json.ProjectInfo
 import java.io.File
+import org.json.JSONObject
 
 object PojlibBridge {
+  private const val DEFAULT_SUPPORTED_VERSION = "1.21.4"
+
   fun initialize(activity: Activity) {
     Constants.initConstants(activity)
     initializeRuntimeHost(activity)
@@ -76,7 +82,44 @@ object PojlibBridge {
 
   fun getSupportedVersions(activity: Activity): Array<String> {
     initialize(activity)
-    return API.getQCSupportedVersions(activity)
+    val versionsJson = File(Constants.USER_HOME, "supportedVersions.json")
+    if (API.hasConnection(activity)) {
+      try {
+        DownloadUtils.downloadFile(APIHandler.SUPPORTED_VERSIONS, versionsJson)
+      } catch (error: Throwable) {
+        Logger.getInstance().appendToLog("Error while grabbing supported versions!\n$error")
+      }
+    } else {
+      Logger.getInstance().appendToLog("Skipping supported versions download.")
+    }
+
+    DownloadManager.reset()
+
+    return try {
+      val raw = FileUtil.read(versionsJson.absolutePath)
+        ?: return arrayOf(DEFAULT_SUPPORTED_VERSION)
+      val versions = JSONObject(raw).optJSONArray("supportedVersions")
+        ?: return arrayOf(DEFAULT_SUPPORTED_VERSION)
+      val parsed = buildList {
+        for (index in 0 until versions.length()) {
+          val value = versions.optString(index).trim()
+          if (value.isNotEmpty() && !contains(value)) {
+            add(value)
+          }
+        }
+      }
+
+      if (parsed.isEmpty()) {
+        Logger.getInstance().appendToLog(
+          "Supported versions list was empty. Falling back to $DEFAULT_SUPPORTED_VERSION."
+        )
+        arrayOf(DEFAULT_SUPPORTED_VERSION)
+      } else {
+        parsed.toTypedArray()
+      }
+    } catch (_: Throwable) {
+      arrayOf(DEFAULT_SUPPORTED_VERSION)
+    }
   }
 
   fun hasConnection(activity: Activity): Boolean {

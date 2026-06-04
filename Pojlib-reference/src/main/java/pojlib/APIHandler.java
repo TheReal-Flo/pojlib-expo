@@ -2,7 +2,10 @@ package pojlib;
 
 import android.content.Context;
 
+import androidx.annotation.Keep;
+
 import com.google.gson.Gson;
+import com.google.gson.annotations.SerializedName;
 
 import java.io.BufferedReader;
 import java.io.File;
@@ -23,6 +26,7 @@ import pojlib.util.GsonUtils;
 import pojlib.util.Logger;
 
 public class APIHandler {
+    private static final String DEFAULT_SUPPORTED_VERSION = "1.21.4";
     public final String baseUrl;
 
     public APIHandler(String url) {
@@ -126,16 +130,32 @@ public class APIHandler {
 
         DownloadManager.reset();
         SupportedVersions versions = GsonUtils.jsonFileToObject(versionsJson.getAbsolutePath(), SupportedVersions.class);
-        if(versions == null) {
+        if(versions == null || versions.supportedVersions == null || versions.supportedVersions.length == 0) {
             return new String[] {
-                    "1.21.4"
+                    DEFAULT_SUPPORTED_VERSION
             };
         }
 
-        return versions.supportedVersions;
+        String[] normalized = java.util.Arrays.stream(versions.supportedVersions)
+                .filter(value -> value != null && !value.trim().isEmpty())
+                .map(String::trim)
+                .distinct()
+                .toArray(String[]::new);
+        if (normalized.length == 0) {
+            return new String[] {
+                    DEFAULT_SUPPORTED_VERSION
+            };
+        }
+
+        return normalized;
     }
 
+    @Keep
     public static class SupportedVersions {
+        public SupportedVersions() {}
+
+        @Keep
+        @SerializedName("supportedVersions")
         public String[] supportedVersions;
     }
 }
