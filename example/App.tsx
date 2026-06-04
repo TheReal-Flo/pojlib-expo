@@ -47,8 +47,8 @@ import WebView, {
 
 const POLL_INTERVAL_MS = 2000;
 const MAX_LOG_LINES = 18;
-const STORAGE_LAST_ACCOUNT_UUID = 'pojlib-expo-example:last-account-uuid';
-const STORAGE_LAST_INSTANCE_NAME = 'pojlib-expo-example:last-instance-name';
+const STORAGE_LAST_ACCOUNT_UUID = 'amethystxr:last-account-uuid';
+const STORAGE_LAST_INSTANCE_NAME = 'amethystxr:last-instance-name';
 const MODRINTH_DEFAULT_URL = 'https://modrinth.com/mods?g=categories:%27vr%27';
 const MODRINTH_MESSAGE_TYPE = 'modrinth-download';
 const FALLBACK_SUPPORTED_VERSIONS = ['1.21.4'];
@@ -301,7 +301,7 @@ function Launcher() {
 
     setPreviousMclogsStatus('Uploading previous session log to mclo.gs...');
 
-    void uploadLogToMclogs(previousLog, 'pojlib-expo-example').then(
+    void uploadLogToMclogs(previousLog, 'amethystxr').then(
       (url) => {
         setPreviousMclogsUrl(url);
         setPreviousMclogsStatus(null);
@@ -742,7 +742,7 @@ function Launcher() {
                     if (!latestLog?.trim()) {
                       throw new Error('No latest log is available to upload.');
                     }
-                    setLatestMclogsUrl(await uploadLogToMclogs(latestLog, 'pojlib-expo-example'));
+                    setLatestMclogsUrl(await uploadLogToMclogs(latestLog, 'amethystxr'));
                   })
                 }
                 onUploadPrevious={() =>
@@ -752,7 +752,7 @@ function Launcher() {
                     }
                     setPreviousMclogsStatus(null);
                     setPreviousMclogsUrl(
-                      await uploadLogToMclogs(previousLog, 'pojlib-expo-example')
+                      await uploadLogToMclogs(previousLog, 'amethystxr')
                     );
                     setAutoUploadedPreviousLog(previousLog);
                   })
@@ -2358,40 +2358,40 @@ const styles = StyleSheet.create({
   },
   accountMenu: {
     width: '100%',
-    maxWidth: 380,
-    backgroundColor: COLORS.panel,
-    borderWidth: 1,
-    borderColor: COLORS.border,
-    borderRadius: 18,
-    padding: 16,
-    gap: 8,
-  },
-  instanceMenu: {
-    width: '100%',
     maxWidth: 460,
     backgroundColor: COLORS.panel,
     borderWidth: 1,
     borderColor: COLORS.border,
-    borderRadius: 18,
-    padding: 16,
-    gap: 8,
+    borderRadius: 22,
+    padding: 22,
+    gap: 12,
+  },
+  instanceMenu: {
+    width: '100%',
+    maxWidth: 560,
+    backgroundColor: COLORS.panel,
+    borderWidth: 1,
+    borderColor: COLORS.border,
+    borderRadius: 22,
+    padding: 22,
+    gap: 12,
   },
   menuScroll: {
-    maxHeight: 320,
+    maxHeight: 420,
   },
   menuTitle: {
     color: COLORS.text,
-    fontSize: 17,
-    fontWeight: '700',
-    marginBottom: 4,
+    fontSize: 22,
+    fontWeight: '800',
+    marginBottom: 8,
   },
   menuRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 12,
-    paddingVertical: 10,
-    paddingHorizontal: 10,
-    borderRadius: 12,
+    gap: 14,
+    paddingVertical: 14,
+    paddingHorizontal: 14,
+    borderRadius: 14,
   },
   menuRowActive: {
     backgroundColor: COLORS.accentSoft,
@@ -2402,17 +2402,17 @@ const styles = StyleSheet.create({
   menuRowText: {
     flex: 1,
     color: COLORS.text,
-    fontSize: 15,
-    fontWeight: '600',
+    fontSize: 17,
+    fontWeight: '700',
   },
   menuRowSub: {
     color: COLORS.textMuted,
-    fontSize: 12,
-    marginTop: 2,
+    fontSize: 14,
+    marginTop: 4,
   },
   menuCheck: {
     color: COLORS.accentBright,
-    fontSize: 16,
+    fontSize: 18,
     fontWeight: '800',
   },
   modalBackdrop: {
@@ -2420,59 +2420,59 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(5, 4, 12, 0.6)',
     alignItems: 'center',
     justifyContent: 'center',
-    padding: 24,
+    padding: 30,
   },
   modalCard: {
     width: '100%',
-    maxWidth: 520,
+    maxWidth: 620,
     backgroundColor: COLORS.panel,
     borderWidth: 1,
     borderColor: COLORS.border,
-    borderRadius: 18,
-    padding: 20,
-    gap: 8,
+    borderRadius: 22,
+    padding: 24,
+    gap: 12,
   },
   loginModalCard: {
     width: '100%',
-    maxWidth: 460,
+    maxWidth: 560,
     backgroundColor: COLORS.panel,
     borderWidth: 1,
     borderColor: COLORS.border,
-    borderRadius: 18,
-    padding: 20,
-    gap: 12,
+    borderRadius: 22,
+    padding: 24,
+    gap: 14,
   },
   loginModalMessageRow: {
     flexDirection: 'row',
     alignItems: 'flex-start',
-    gap: 12,
+    gap: 14,
   },
   loginModalMessage: {
     flex: 1,
     color: COLORS.text,
-    fontSize: 14,
-    lineHeight: 21,
+    fontSize: 16,
+    lineHeight: 24,
   },
   modalActions: {
     flexDirection: 'row',
     justifyContent: 'flex-end',
-    gap: 10,
-    marginTop: 12,
+    gap: 12,
+    marginTop: 16,
   },
   fieldLabel: {
     color: COLORS.textMuted,
-    fontSize: 13,
-    fontWeight: '600',
-    marginTop: 6,
+    fontSize: 15,
+    fontWeight: '700',
+    marginTop: 8,
   },
   input: {
     borderRadius: 12,
     borderWidth: 1,
     borderColor: COLORS.border,
     backgroundColor: COLORS.heroDeep,
-    paddingHorizontal: 14,
-    paddingVertical: 12,
-    fontSize: 15,
+    paddingHorizontal: 16,
+    paddingVertical: 14,
+    fontSize: 17,
     color: COLORS.text,
   },
   fieldPicker: {
@@ -2482,13 +2482,13 @@ const styles = StyleSheet.create({
     backgroundColor: COLORS.heroDeep,
     overflow: 'hidden',
     justifyContent: 'center',
-    minHeight: 52,
+    minHeight: 60,
   },
   picker: {
     color: COLORS.text,
     ...Platform.select({
-      android: { height: 52, paddingHorizontal: 8 },
-      ios: { height: 180 },
+      android: { height: 60, paddingHorizontal: 10 },
+      ios: { height: 210 },
       default: {},
     }),
   },
@@ -2522,8 +2522,8 @@ const styles = StyleSheet.create({
   primaryButton: {
     backgroundColor: COLORS.accent,
     borderRadius: 12,
-    paddingHorizontal: 18,
-    paddingVertical: 12,
+    paddingHorizontal: 22,
+    paddingVertical: 14,
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -2532,16 +2532,16 @@ const styles = StyleSheet.create({
   },
   primaryButtonText: {
     color: '#ffffff',
-    fontSize: 14,
-    fontWeight: '700',
+    fontSize: 16,
+    fontWeight: '800',
   },
   secondaryButton: {
     backgroundColor: 'transparent',
     borderRadius: 12,
     borderWidth: 1,
     borderColor: COLORS.border,
-    paddingHorizontal: 16,
-    paddingVertical: 11,
+    paddingHorizontal: 20,
+    paddingVertical: 13,
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -2550,7 +2550,7 @@ const styles = StyleSheet.create({
   },
   secondaryButtonText: {
     color: COLORS.text,
-    fontSize: 14,
-    fontWeight: '600',
+    fontSize: 16,
+    fontWeight: '700',
   },
 });

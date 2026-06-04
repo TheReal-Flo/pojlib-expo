@@ -1,8 +1,8 @@
 {
   "expo": {
-    "name": "pojlib-expo-example",
-    "slug": "pojlib-expo-example",
-    "version": "1.0.0",
+    "name": "AmethystXR",
+    "slug": "amethystxr",
+    "version": "1.0.0-alpha.1",
     "orientation": "landscape",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "light",
@@ -14,7 +14,7 @@
     },
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "dev.justfeli.pojlibexpo.example"
+      "bundleIdentifier": "xyz.amethystxr.launcher"
     },
     "android": {
       "adaptiveIcon": {
@@ -23,7 +23,7 @@
       },
       "edgeToEdgeEnabled": true,
       "predictiveBackGestureEnabled": false,
-      "package": "dev.justfeli.pojlibexpo.example"
+      "package": "xyz.amethystxr.launcher"
     },
     "web": {
       "favicon": "./assets/favicon.png"
@@ -40,7 +40,7 @@
     ],
     "extra": {
       "eas": {
-        "projectId": "c88cb380-d29b-47bb-9832-ffe93ecf87d9"
+        "projectId": "171e3df0-b036-434f-8b6a-1b28ad42b76f"
       }
     }
   }
