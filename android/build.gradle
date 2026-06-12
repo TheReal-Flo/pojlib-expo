@@ -9,9 +9,16 @@ version = '0.1.0'
 def pojlibAarName = 'Pojlib-release'
 def pojlibAarFile = file("libs/${pojlibAarName}.aar")
 def extractedPojlibJniDir = file("$buildDir/generated/pojlib-jni")
+def sdl3AarName = 'SDL3-3.2.16'
+def sdl3AarFile = file("libs/${sdl3AarName}.aar")
+def extractedSdl3JniDir = file("$buildDir/generated/sdl3-jni")
 
 if (!pojlibAarFile.exists()) {
   throw new GradleException("Missing ${pojlibAarFile.name} in android/libs. Copy the Pojlib AAR into android/libs before building Android.")
+}
+
+if (!sdl3AarFile.exists()) {
+  throw new GradleException("Missing ${sdl3AarFile.name} in android/libs. Copy the SDL3 Android AAR into android/libs before building Android.")
 }
 
 tasks.register("extractPojlibJni") {
@@ -24,6 +31,30 @@ tasks.register("extractPojlibJni") {
       from(zipTree(pojlibAarFile))
       into(extractedPojlibJniDir)
       include "jni/**"
+    }
+  }
+}
+
+tasks.register("extractSdl3Jni") {
+  inputs.file(sdl3AarFile)
+  outputs.dir(extractedSdl3JniDir)
+
+  doLast {
+    delete(extractedSdl3JniDir)
+
+    [
+      "armeabi-v7a": "prefab/modules/SDL3-shared/libs/android.armeabi-v7a/libSDL3.so",
+      "arm64-v8a": "prefab/modules/SDL3-shared/libs/android.arm64-v8a/libSDL3.so",
+      "x86": "prefab/modules/SDL3-shared/libs/android.x86/libSDL3.so",
+      "x86_64": "prefab/modules/SDL3-shared/libs/android.x86_64/libSDL3.so",
+    ].each { abi, sourcePath ->
+      copy {
+        from(zipTree(sdl3AarFile)) {
+          include sourcePath
+        }
+        into(file("$extractedSdl3JniDir/jni/${abi}"))
+        rename { "libSDL3.so" }
+      }
     }
   }
 }
@@ -42,12 +73,14 @@ android {
   sourceSets {
     main {
       jniLibs.srcDirs += ["$buildDir/generated/pojlib-jni/jni"]
+      jniLibs.srcDirs += ["$buildDir/generated/sdl3-jni/jni"]
     }
   }
 }
 
 tasks.named("preBuild").configure {
   dependsOn("extractPojlibJni")
+  dependsOn("extractSdl3Jni")
 }
 
 dependencies {

@@ -33,6 +33,7 @@ import pojlib.API;
 import pojlib.PojlibRuntimeHost;
 import pojlib.install.Installer;
 import pojlib.install.MinecraftMeta;
+import pojlib.install.VersionInfo;
 import pojlib.util.json.MinecraftInstances;
 
 public class JREUtils {
@@ -257,7 +258,8 @@ public class JREUtils {
             );
         }
 
-        LD_LIBRARY_PATH = Constants.getInternalHomeFile("runtimes/JRE/bin").getAbsolutePath() + ":" + Constants.getInternalHomeFile("runtimes/JRE/lib").getAbsolutePath() + ":" +
+        File runtimeDir = Constants.getRuntimeDir();
+        LD_LIBRARY_PATH = new File(runtimeDir, "bin").getAbsolutePath() + ":" + new File(runtimeDir, "lib").getAbsolutePath() + ":" +
                 "/system/lib64:/vendor/lib64:/vendor/lib64/hw:" +
                 sNativeLibDir + (sJavaNativeLibDir.equals(sNativeLibDir) ? "" : ":" + sJavaNativeLibDir);
     }
@@ -289,7 +291,7 @@ public class JREUtils {
         }
 
         envMap.put("LD_LIBRARY_PATH", LD_LIBRARY_PATH);
-        envMap.put("PATH", Constants.getInternalHomeFile("runtimes/JRE/bin").getAbsolutePath() + ":" + Os.getenv("PATH"));
+        envMap.put("PATH", new File(Constants.getRuntimeDir(), "bin").getAbsolutePath() + ":" + Os.getenv("PATH"));
 
         File customEnvFile = new File(Constants.USER_HOME, "custom_env.txt");
         if (customEnvFile.exists() && customEnvFile.isFile()) {
@@ -341,8 +343,8 @@ public class JREUtils {
             Os.setenv(env.getKey(), env.getValue(), true);
         }
 
-        File serverFile = Constants.getInternalHomeFile("runtimes/JRE/lib/server/libjvm.so");
-        jvmLibraryPath = Constants.getInternalHomeFile("runtimes/JRE/lib/" + (serverFile.exists() ? "server" : "client")).getAbsolutePath();
+        File serverFile = new File(Constants.getRuntimeDir(), "lib/server/libjvm.so");
+        jvmLibraryPath = new File(Constants.getRuntimeDir(), "lib/" + (serverFile.exists() ? "server" : "client")).getAbsolutePath();
         Log.d("DynamicLoader","Base LD_LIBRARY_PATH: "+LD_LIBRARY_PATH);
         Log.d("DynamicLoader","Internal LD_LIBRARY_PATH: "+jvmLibraryPath+":"+LD_LIBRARY_PATH);
         setLdLibraryPath(jvmLibraryPath+":"+LD_LIBRARY_PATH);
@@ -350,14 +352,17 @@ public class JREUtils {
 
     // Called before game launch to ensure all files are present and correct
     public static void prelaunchCheck(Activity activity, MinecraftInstances.Instance instance) throws IOException, ExecutionException, InterruptedException {
+        VersionInfo versionInfo = MinecraftMeta.getVersionInfo(instance.versionName);
         PojlibRuntimeHost.installLWJGL(activity);
-        Installer.installJVM(activity);
-        Installer.installClient(MinecraftMeta.getVersionInfo(instance.versionName), Constants.USER_HOME).get();
-        Installer.installLibraries(MinecraftMeta.getVersionInfo(instance.versionName), Constants.USER_HOME).get();
-        Installer.installAssets(MinecraftMeta.getVersionInfo(instance.versionName), Constants.USER_HOME).get();
+        Installer.installJVM(activity, versionInfo);
+        Installer.installClient(versionInfo, Constants.USER_HOME).get();
+        Installer.installLibraries(versionInfo, Constants.USER_HOME).get();
+        Installer.installAssets(versionInfo, Constants.USER_HOME).get();
     }
 
     public static int launchJavaVM(final Activity activity, final List<String> JVMArgs, MinecraftInstances.Instance instance) throws Throwable {
+        VersionInfo versionInfo = MinecraftMeta.getVersionInfo(instance.versionName);
+        Installer.installJVM(activity, versionInfo);
         JREUtils.relocateLibPath(activity);
         setJavaEnvironment(activity, instance);
 
@@ -419,6 +424,10 @@ public class JREUtils {
     }
 
     public static int launchJavaTool(final Activity activity, final File workingDirectory, final List<String> toolArgs) throws Throwable {
+        return launchJavaTool(activity, workingDirectory, toolArgs, Constants.DEFAULT_RUNTIME_JAVA_MAJOR_VERSION);
+    }
+
+    public static int launchJavaTool(final Activity activity, final File workingDirectory, final List<String> toolArgs, int requiredJavaMajorVersion) throws Throwable {
         if (workingDirectory == null) {
             throw new IllegalArgumentException("workingDirectory must not be null");
         }
@@ -426,6 +435,7 @@ public class JREUtils {
         MinecraftInstances.Instance toolInstance = new MinecraftInstances.Instance();
         toolInstance.gameDir = workingDirectory.getAbsolutePath();
 
+        Installer.installJVM(activity, requiredJavaMajorVersion);
         JREUtils.relocateLibPath(activity);
         setJavaEnvironment(activity, toolInstance);
 

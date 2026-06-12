@@ -6,6 +6,7 @@ import java.io.File;
 import java.util.Objects;
 
 public class Constants {
+    public static final int DEFAULT_RUNTIME_JAVA_MAJOR_VERSION = 22;
 
     public static final String MOJANG_META_URL = "https://piston-meta.mojang.com";
 
@@ -34,6 +35,7 @@ public class Constants {
     public static String APP_PACKAGE;
     public static String USER_HOME;
     public static String INTERNAL_HOME;
+    private static volatile String SELECTED_RUNTIME_FOLDER_NAME = getRuntimeFolderName(DEFAULT_RUNTIME_JAVA_MAJOR_VERSION);
 
     public static void initConstants(Activity activity) {
         APP_PACKAGE = activity.getPackageName();
@@ -63,6 +65,52 @@ public class Constants {
     }
 
     public static File getRuntimeDir() {
-        return getInternalHomeFile("runtimes/JRE");
+        return getInternalHomeFile("runtimes/" + SELECTED_RUNTIME_FOLDER_NAME);
+    }
+
+    public static void selectRuntimeJavaMajorVersion(int majorVersion) {
+        SELECTED_RUNTIME_FOLDER_NAME = getRuntimeFolderName(majorVersion);
+    }
+
+    public static int getSelectedRuntimeJavaMajorVersion() {
+        String folderName = SELECTED_RUNTIME_FOLDER_NAME;
+        if ("JRE".equals(folderName)) {
+            return DEFAULT_RUNTIME_JAVA_MAJOR_VERSION;
+        }
+        if (folderName.startsWith("JRE-")) {
+            try {
+                return Integer.parseInt(folderName.substring("JRE-".length()));
+            } catch (NumberFormatException ignored) {
+            }
+        }
+        return DEFAULT_RUNTIME_JAVA_MAJOR_VERSION;
+    }
+
+    public static void selectRuntimeDirectory(File runtimeDir) {
+        if (runtimeDir == null) {
+            SELECTED_RUNTIME_FOLDER_NAME = getRuntimeFolderName(DEFAULT_RUNTIME_JAVA_MAJOR_VERSION);
+            return;
+        }
+        SELECTED_RUNTIME_FOLDER_NAME = runtimeDir.getName();
+    }
+
+    public static String getRuntimeFolderName(int majorVersion) {
+        int normalized = majorVersion <= 0 ? DEFAULT_RUNTIME_JAVA_MAJOR_VERSION : Math.max(DEFAULT_RUNTIME_JAVA_MAJOR_VERSION, majorVersion);
+        if (normalized == DEFAULT_RUNTIME_JAVA_MAJOR_VERSION) {
+            return "JRE";
+        }
+        return "JRE-" + normalized;
+    }
+
+    public static File getRuntimeDir(int majorVersion) {
+        return getInternalHomeFile("runtimes/" + getRuntimeFolderName(majorVersion));
+    }
+
+    public static File getRuntimeArchiveFile(int majorVersion) {
+        String folderName = getRuntimeFolderName(majorVersion);
+        if ("JRE".equals(folderName)) {
+            return getInternalHomeFile("runtimes/JRE.zip");
+        }
+        return getInternalHomeFile("runtimes/" + folderName + ".zip");
     }
 }

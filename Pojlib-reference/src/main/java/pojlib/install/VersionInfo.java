@@ -21,6 +21,22 @@ public class VersionInfo {
     public Arguments arguments;
     @SerializedName("assets")
     public String assets;
+    @SerializedName("javaVersion")
+    public JavaVersion javaVersion;
+
+    public int getRequiredJavaMajorVersion() {
+        if (javaVersion == null || javaVersion.majorVersion <= 0) {
+            return 0;
+        }
+        return javaVersion.majorVersion;
+    }
+
+    public static class JavaVersion {
+        @SerializedName("component")
+        public String component;
+        @SerializedName("majorVersion")
+        public int majorVersion;
+    }
 
     public static class AssetIndex {
         @SerializedName("id")

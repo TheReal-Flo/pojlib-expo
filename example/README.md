@@ -18,10 +18,10 @@ It shows how to:
 
 Core files:
 
-- [App.tsx](/C:/Users/flori/Documents/Coding/pojlib-expo/example/App.tsx): launcher UI and JS integration
-- [app.json](/C:/Users/flori/Documents/Coding/pojlib-expo/example/app.json): Expo config
-- [android/app/src/main/AndroidManifest.xml](/C:/Users/flori/Documents/Coding/pojlib-expo/example/android/app/src/main/AndroidManifest.xml): Quest launcher manifest setup
-- [android/app/src/main/java/xyz/amethystxr/launcher/MainActivity.kt](/C:/Users/flori/Documents/Coding/pojlib-expo/example/android/app/src/main/java/xyz/amethystxr/launcher/MainActivity.kt): launcher activity
+- [App.tsx](App.tsx): launcher UI and JS integration
+- [app.json](app.json): Expo config
+- [android/app/src/main/AndroidManifest.xml](android/app/src/main/AndroidManifest.xml): Quest launcher manifest setup
+- [android/app/src/main/java/xyz/amethystxr/launcher/MainActivity.kt](android/app/src/main/java/xyz/amethystxr/launcher/MainActivity.kt): launcher activity
 
 ## Requirements
 
@@ -39,6 +39,31 @@ Important Android settings already configured here:
 - `hermesEnabled=true`
 - launcher orientation: landscape
 - Quest VR app metadata in the manifest
+
+## Java runtimes
+
+The launcher now supports Minecraft versions that declare newer Java requirements in Mojang metadata.
+
+Current runtime behavior:
+
+- default runtime folder: `files/runtimes/JRE`
+- Java 25 runtime folder: `files/runtimes/JRE-25`
+- default Java 25 download asset: `https://github.com/QuestCraftPlusPlus/android-openjdk-build-multiarch/releases/latest/download/JRE25.zip`
+- Java 25 can also be supplied with `POJLIB_JRE_25_URL=<runtime zip url>` in `custom_env.txt`
+
+If you need to produce that archive yourself, use the root repo helpers:
+
+```powershell
+pwsh ../scripts/prepare-jre25-runtime-build.ps1
+```
+
+Then, in the prepared runtime repo after the upstream build/repack steps:
+
+```bash
+./10_packjrezip.sh /path/to/repacked/output JRE25.zip
+```
+
+If a version requires Java 25 and the launcher cannot find a compatible installed runtime, default `JRE25.zip` release asset, or configured Java 25 override URL, launch fails with a clear runtime-missing error.
 
 ## Install Dependencies
 
@@ -90,22 +115,21 @@ The optimized profile re-enables shrinking/minification and is expected to be mo
 
 This launcher adds app-level Quest metadata on top of the library manifest merge.
 
-Important pieces in [android/app/src/main/AndroidManifest.xml](/C:/Users/flori/Documents/Coding/pojlib-expo/example/android/app/src/main/AndroidManifest.xml):
+Important pieces in [android/app/src/main/AndroidManifest.xml](android/app/src/main/AndroidManifest.xml):
 
-- `pvr.app.type=vr`
-- `pvr.display.orientation=180`
-- `pvr.sdk.version=OpenXR`
 - `com.oculus.vr.focusaware=true`
 - `com.oculus.intent.category.VR=vr_only`
 - `MainActivity` with `android:screenOrientation="sensorLandscape"`
 
-Those app-level entries are specific to the launcher shell. The module itself contributes the dedicated `PojlibVrActivity` and OpenXR-related entries through its own manifest.
+Those app-level entries are specific to the Quest launcher shell. The module itself contributes the dedicated `PojlibVrActivity` and OpenXR-related entries through its own manifest.
+
+The launcher intentionally does not include Pico `pvr.*` application metadata. On Pico, those flags can cause the launcher itself to open directly in immersive VR instead of staying as a flat launcher and only switching during the explicit handoff to `PojlibVrActivity`.
 
 ## Microphone Permission
 
 The launcher requests `RECORD_AUDIO` on startup in:
 
-- [android/app/src/main/java/xyz/amethystxr/launcher/MainActivity.kt](/C:/Users/flori/Documents/Coding/pojlib-expo/example/android/app/src/main/java/xyz/amethystxr/launcher/MainActivity.kt)
+- [android/app/src/main/java/xyz/amethystxr/launcher/MainActivity.kt](android/app/src/main/java/xyz/amethystxr/launcher/MainActivity.kt)
 
 This is only to avoid stalling the VR handoff later. Gameplay itself is not blocked if the permission is denied.
 
@@ -145,8 +169,8 @@ This app assumes Android. iOS/web do not provide a working runtime implementatio
 
 If microphone permission timing regresses, check:
 
-- [MainActivity.kt](/C:/Users/flori/Documents/Coding/pojlib-expo/example/android/app/src/main/java/xyz/amethystxr/launcher/MainActivity.kt)
-- [PojlibVrActivity.java](/C:/Users/flori/Documents/Coding/pojlib-expo/android/src/main/java/dev/justfeli/pojlibexpo/PojlibVrActivity.java)
+- [MainActivity.kt](android/app/src/main/java/xyz/amethystxr/launcher/MainActivity.kt)
+- [PojlibVrActivity.java](../android/src/main/java/dev/justfeli/pojlibexpo/PojlibVrActivity.java)
 
 ## License
 

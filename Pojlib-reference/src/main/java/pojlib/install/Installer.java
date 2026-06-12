@@ -19,6 +19,8 @@ import pojlib.util.*;
 
 import java.io.File;
 import java.io.IOException;
+import java.io.BufferedReader;
+import java.io.FileReader;
 import java.nio.file.Files;
 import java.nio.file.Paths;
 import java.util.Arrays;
@@ -37,40 +39,42 @@ import java.util.concurrent.TimeUnit;
 //This class reads data from a game version json and downloads its contents.
 //This works for the base game as well as mod loaders
 public class Installer {
+    private static final String DEFAULT_JRE_22_URL = "https://github.com/QuestCraftPlusPlus/android-openjdk-build-multiarch/releases/latest/download/JRE.zip";
+    private static final String DEFAULT_JRE_25_URL = "https://github.com/QuestCraftPlusPlus/android-openjdk-build-multiarch/releases/latest/download/JRE25.zip";
 
-    public static void installJVM(Activity activity) {
-        Logger.getInstance().appendToLog("Checking JRE");
-        File jre = Constants.getRuntimeDir();
-        String jreURL = "https://github.com/QuestCraftPlusPlus/android-openjdk-build-multiarch/releases/latest/download/JRE.zip";
-
-        try {
-            if (!jre.exists()) {
-                Logger.getInstance().appendToLog("Installing JRE");
-                File jreZip = Constants.getInternalHomeFile("runtimes/JRE.zip");
-                DownloadUtils.downloadFile(jreURL, jreZip);
-                DownloadManager.reset();
-                FileUtil.unzipArchive(jreZip.getPath(), Constants.getRuntimeDir().getAbsolutePath());
-                File nativeLibDir = PojlibRuntimeHost.installNativeLibraries(activity);
-                File awtXawtSource = new File(nativeLibDir, "libawt_xawt.so");
-                if (awtXawtSource.exists()) {
-                    Files.copy(
-                        Paths.get(awtXawtSource.getAbsolutePath()),
-                        Paths.get(Constants.getInternalHomeFile("runtimes/JRE/lib/libawt_xawt.so").getAbsolutePath()),
-                        java.nio.file.StandardCopyOption.REPLACE_EXISTING
-                    );
-                } else {
-                    Logger.getInstance().appendToLog(
-                        "Skipping libawt_xawt.so copy because it is not packaged in the app native libraries."
-                    );
-                }
-                jreZip.delete();
-            }
-
-            Logger.getInstance().appendToLog("JRE installed");
-        } catch (IOException e) {
-            Logger.getInstance().appendToLog("Failed to install JRE: " + e.getMessage());
-            e.printStackTrace();
+    public static int resolveRequiredJavaMajorVersion(VersionInfo versionInfo) {
+        int requiredVersion = versionInfo == null ? 0 : versionInfo.getRequiredJavaMajorVersion();
+        if (requiredVersion <= 0) {
+            return Constants.DEFAULT_RUNTIME_JAVA_MAJOR_VERSION;
         }
+        return Math.max(Constants.DEFAULT_RUNTIME_JAVA_MAJOR_VERSION, requiredVersion);
+    }
+
+    public static File installJVM(Activity activity) throws IOException {
+        return installJVM(activity, Constants.DEFAULT_RUNTIME_JAVA_MAJOR_VERSION);
+    }
+
+    public static File installJVM(Activity activity, VersionInfo versionInfo) throws IOException {
+        return installJVM(activity, resolveRequiredJavaMajorVersion(versionInfo));
+    }
+
+    public static File installJVM(Activity activity, int requiredJavaMajorVersion) throws IOException {
+        int runtimeMajorVersion = requiredJavaMajorVersion <= 0
+                ? Constants.DEFAULT_RUNTIME_JAVA_MAJOR_VERSION
+                : Math.max(Constants.DEFAULT_RUNTIME_JAVA_MAJOR_VERSION, requiredJavaMajorVersion);
+        Constants.selectRuntimeJavaMajorVersion(runtimeMajorVersion);
+
+        Logger.getInstance().appendToLog("Checking JRE for Java " + runtimeMajorVersion);
+        File jre = findInstalledRuntime(runtimeMajorVersion);
+        if (jre == null) {
+            jre = installRuntimeArchive(activity, runtimeMajorVersion);
+        } else {
+            Logger.getInstance().appendToLog("Using installed runtime: " + jre.getAbsolutePath());
+        }
+
+        Constants.selectRuntimeDirectory(jre);
+        Logger.getInstance().appendToLog("JRE installed");
+        return jre;
     }
 
     // Will only download client if it is missing, however it will overwrite if sha1 does not match the downloaded client
@@ -193,7 +197,7 @@ public class Installer {
             }
         }
 
-        installJVM(activity);
+        installJVM(activity, MinecraftMeta.getVersionInfo(minecraftVersion));
 
         File installRoot = new File(gameDir);
         installRoot.mkdirs();
@@ -228,7 +232,12 @@ public class Installer {
 
         int exitCode;
         try {
-            exitCode = JREUtils.launchJavaTool(activity, installRoot, installerArgs);
+            exitCode = JREUtils.launchJavaTool(
+                    activity,
+                    installRoot,
+                    installerArgs,
+                    resolveRequiredJavaMajorVersion(MinecraftMeta.getVersionInfo(minecraftVersion))
+            );
         } catch (Throwable t) {
             throw new IOException("NeoForge installer failed to start in-process.", t);
         }
@@ -350,5 +359,147 @@ public class Installer {
         String version = parts[2];
 
         return String.format("%s/%s/%s/%s", location, name, version, name + "-" + version + ".jar");
+    }
+
+    private static File installRuntimeArchive(Activity activity, int runtimeMajorVersion) throws IOException {
+        String jreURL = resolveRuntimeDownloadUrl(runtimeMajorVersion);
+        if (jreURL == null || jreURL.trim().isEmpty()) {
+            throw new IOException(
+                    "No runtime source is configured for Java " + runtimeMajorVersion + ". " +
+                    "Install " + Constants.getRuntimeFolderName(runtimeMajorVersion) + " manually under " +
+                    Constants.getInternalHomeFile("runtimes").getAbsolutePath() +
+                    " or provide POJLIB_JRE_" + runtimeMajorVersion + "_URL in custom_env.txt."
+            );
+        }
+
+        Logger.getInstance().appendToLog("Installing JRE for Java " + runtimeMajorVersion);
+        File jreZip = Constants.getRuntimeArchiveFile(runtimeMajorVersion);
+        File runtimeDir = Constants.getRuntimeDir(runtimeMajorVersion);
+        DownloadUtils.downloadFile(jreURL, jreZip);
+        DownloadManager.reset();
+        FileUtil.unzipArchive(jreZip.getPath(), runtimeDir.getAbsolutePath());
+        File nativeLibDir = PojlibRuntimeHost.installNativeLibraries(activity);
+        File awtXawtSource = new File(nativeLibDir, "libawt_xawt.so");
+        if (awtXawtSource.exists()) {
+            Files.copy(
+                    Paths.get(awtXawtSource.getAbsolutePath()),
+                    Paths.get(new File(runtimeDir, "lib/libawt_xawt.so").getAbsolutePath()),
+                    java.nio.file.StandardCopyOption.REPLACE_EXISTING
+            );
+        } else {
+            Logger.getInstance().appendToLog(
+                    "Skipping libawt_xawt.so copy because it is not packaged in the app native libraries."
+            );
+        }
+        jreZip.delete();
+        return runtimeDir;
+    }
+
+    private static File findInstalledRuntime(int runtimeMajorVersion) {
+        File preferredRuntime = Constants.getRuntimeDir(runtimeMajorVersion);
+        if (isRuntimeCompatible(preferredRuntime, runtimeMajorVersion)) {
+            return preferredRuntime;
+        }
+
+        File legacyRuntime = Constants.getRuntimeDir(Constants.DEFAULT_RUNTIME_JAVA_MAJOR_VERSION);
+        if (!preferredRuntime.equals(legacyRuntime) && isRuntimeCompatible(legacyRuntime, runtimeMajorVersion)) {
+            return legacyRuntime;
+        }
+
+        return null;
+    }
+
+    private static boolean isRuntimeCompatible(File runtimeDir, int requiredJavaMajorVersion) {
+        if (runtimeDir == null || !runtimeDir.exists()) {
+            return false;
+        }
+
+        File libJvm = new File(runtimeDir, "lib/server/libjvm.so");
+        File clientJvm = new File(runtimeDir, "lib/client/libjvm.so");
+        if (!libJvm.exists() && !clientJvm.exists()) {
+            return false;
+        }
+
+        int installedMajorVersion = readInstalledJavaMajorVersion(runtimeDir, 0);
+        return installedMajorVersion == 0 || installedMajorVersion >= requiredJavaMajorVersion;
+    }
+
+    private static int readInstalledJavaMajorVersion(File runtimeDir, int fallback) {
+        File releaseFile = new File(runtimeDir, "release");
+        if (!releaseFile.exists()) {
+            return fallback;
+        }
+
+        try (BufferedReader reader = new BufferedReader(new FileReader(releaseFile))) {
+            String line;
+            while ((line = reader.readLine()) != null) {
+                if (!line.startsWith("JAVA_VERSION=")) {
+                    continue;
+                }
+                String value = line.substring("JAVA_VERSION=".length()).replace("\"", "").trim();
+                String majorComponent = value;
+                int dot = value.indexOf('.');
+                if (dot != -1) {
+                    majorComponent = value.substring(0, dot);
+                }
+                return Integer.parseInt(majorComponent);
+            }
+        } catch (Throwable t) {
+            Logger.getInstance().appendToLog("Failed to read runtime release metadata: " + t.getMessage());
+        }
+
+        return fallback;
+    }
+
+    private static String resolveRuntimeDownloadUrl(int runtimeMajorVersion) {
+        String override = readRuntimeUrlOverride(runtimeMajorVersion);
+        if (override != null && !override.trim().isEmpty()) {
+            return override.trim();
+        }
+
+        if (runtimeMajorVersion <= Constants.DEFAULT_RUNTIME_JAVA_MAJOR_VERSION) {
+            return DEFAULT_JRE_22_URL;
+        }
+
+        if (runtimeMajorVersion == 25) {
+            return DEFAULT_JRE_25_URL;
+        }
+
+        return null;
+    }
+
+    private static String readRuntimeUrlOverride(int runtimeMajorVersion) {
+        String envKey = "POJLIB_JRE_" + runtimeMajorVersion + "_URL";
+        String processValue = System.getenv(envKey);
+        if (processValue != null && !processValue.trim().isEmpty()) {
+            return processValue.trim();
+        }
+
+        File customEnvFile = Constants.getUserHomeFile("custom_env.txt");
+        if (!customEnvFile.exists()) {
+            return null;
+        }
+
+        try (BufferedReader reader = new BufferedReader(new FileReader(customEnvFile))) {
+            String line;
+            while ((line = reader.readLine()) != null) {
+                int index = line.indexOf('=');
+                if (index <= 0) {
+                    continue;
+                }
+                String key = line.substring(0, index).trim();
+                if (!envKey.equals(key)) {
+                    continue;
+                }
+                String value = line.substring(index + 1).trim();
+                if (!value.isEmpty()) {
+                    return value;
+                }
+            }
+        } catch (IOException e) {
+            Logger.getInstance().appendToLog("Failed to read runtime override from custom_env.txt: " + e.getMessage());
+        }
+
+        return null;
     }
 }
